@@ -45,9 +45,18 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         {
             Visit(expr);
         }
-        GC.Comment("--Pop Value--");
-        GC.Pop(Register.X0);
-        GC.PrintInt(Register.X0);
+
+        int argPrint = context.expr().Length;
+        GC.Comment("--Print values--");
+        for(int i = 0; i<argPrint; i++){
+            GC.Comment("--Pop Value--");
+            GC.Pop(Register.X0);
+            GC.PrintInt(Register.X0);
+            //AÑADIR ESPACIO ENTRE ARGUMENTOS
+             if(i < argPrint -1){
+                GC.PrintSpace();
+                }
+        }
         return null;
     }
     public override Object? VisitIdentifier(LanguageParser.IdentifierContext context)

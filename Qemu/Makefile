@@ -2,7 +2,7 @@ AS = aarch64-linux-gnu-as
 LD = aarch64-linux-gnu-ld
 CPU = cortex-a57
 
-TARGET = hello_world
+TARGET = programm
 
 $(TARGET): $(TARGET).o
 	$(LD) $< -o $@

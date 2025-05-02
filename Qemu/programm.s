@@ -3,11 +3,18 @@
 _start:
     // --Print statement--
     // --Integer value--
-    MOV x0, #1
+    MOV x0, #2
     STR x0, [SP, #-8]!
     // --Integer value--
     MOV x0, #2
     STR x0, [SP, #-8]!
+    // --Print values--
+    // --Pop Value--
+    LDR x0, [SP], #8
+    MOV x0, x0
+    BL print_integer
+    //print space
+    BL print_space
     // --Pop Value--
     LDR x0, [SP], #8
     MOV x0, x0
@@ -125,3 +132,27 @@ print_result:
 
 minus_sign:
     .ascii "-"               // Minus sign
+
+
+//--------------------------------------------------------------
+// print_space - Prints a space character to stdout
+//--------------------------------------------------------------
+.align 4  // Añade esta línea para alinear la etiqueta
+print_space:
+    // Save link register
+    stp x29, x30, [sp, #-16]!
+    
+    // Print space character
+    mov x0, #1           // fd = 1 (stdout)
+    adr x1, space_char   // address of space
+    mov x2, #1           // length is 1 byte
+    mov w8, #64          // write syscall
+    svc #0
+    
+    // Restore registers and return
+    ldp x29, x30, [sp], #16
+    ret
+
+.align 4  // Añade esta línea para alinear la etiqueta de datos
+space_char:
+    .ascii " "         // Space character

@@ -67,6 +67,12 @@ public class Generator
         instructions.Add("SVC #0");
     }
 
+    public void PrintSpace(){
+        instructions.Add("//print space");
+        instructions.Add("BL print_space");
+        standardLibrary.Use("print_space");
+    }
+
     // Print integer function
     public void PrintInt(string rd)
     {
