@@ -1,100 +1,127 @@
-.section .data
-    arreglo: .word 10, 20, 30, 40, 50
-    .equ longitud, (. - arreglo) / 4
-    mensaje: .ascii "La suma es: "
-    mensaje_len = . - mensaje
-    buffer: .space 20
-    newline: .ascii "\n"
-
-.section .text
+.text
 .global _start
-
 _start:
-    // Inicializar suma en 0
-    mov w3, #0
-    
-    // Cargar dirección base del arreglo
-    adr x0, arreglo
-    
-    // Inicializar contador
-    mov w2, #0
-    
-bucle:
-    // Comparar contador con longitud
-    cmp w2, #longitud
-    bge fin_bucle
-    
-    // Calcular dirección del elemento actual
-    lsl w4, w2, #2           // w4 = índice * 4 (tamaño de word)
-    add x1, x0, x4           // x1 = dirección base + offset
-    
-    // Cargar valor y sumarlo al acumulador
-    ldr w5, [x1]
-    add w3, w3, w5
-    
-    // Incrementar contador
-    add w2, w2, #1
-    
-    // Repetir bucle
-    b bucle
-    
-fin_bucle:
-    // La suma está en w3
-    // Primero imprimimos el mensaje "La suma es: "
-    mov x0, #1               // STDOUT
-    adr x1, mensaje          // Dirección del mensaje
-    mov x2, #mensaje_len     // Longitud del mensaje
-    mov x8, #64              // write syscall
-    svc #0
+    // --Print statement--
+    // --Integer value--
+    MOV x0, #1
+    STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #2
+    STR x0, [SP, #-8]!
+    // --Pop Value--
+    LDR x0, [SP], #8
+    MOV x0, x0
+    BL print_integer
+    MOV x0, #0
+    MOV x8, #93
+    SVC #0
 
-    // Convertir el valor en w3 a ASCII
-    mov w0, w3               // Mover el resultado a w0
-    adr x1, buffer           // Buffer para la cadena
-    add x1, x1, #19          // Comenzar desde el final del buffer
-    mov w2, #0               // Contador de dígitos
+
+
+// Standard library functions
+
+//--------------------------------------------------------------
+// print_integer - Prints a signed integer to stdout
+//
+// Input:
+//   x0 - The integer value to print
+//--------------------------------------------------------------
+print_integer:
+    // Save registers
+    stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
+    stp x19, x20, [sp, #-16]!  // Save callee-saved registers
+    stp x21, x22, [sp, #-16]!
+    stp x23, x24, [sp, #-16]!
+    stp x25, x26, [sp, #-16]!
+    stp x27, x28, [sp, #-16]!
     
-    // Asegurarnos de terminar con un caracter nulo
-    mov w4, #0
-    strb w4, [x1]
-    sub x1, x1, #1
+    // Check if number is negative
+    mov x19, x0                // Save original number
+    cmp x19, #0                // Compare with zero
+    bge positive_number        // Branch if greater or equal to zero
     
-    // Cargar constante 10 para divisiones
-    mov w6, #10
-    
-convertir_loop:
-    // División por 10
-    udiv w4, w0, w6         // w4 = w0 / 10
-    msub w5, w4, w6, w0     // w5 = w0 - (w4 * 10) = w0 % 10
-    
-    // Convertir a ASCII y guardar en el buffer
-    add w5, w5, #48          // Convertir a ASCII
-    strb w5, [x1]            // Guardar en buffer
-    sub x1, x1, #1           // Mover a la siguiente posición
-    
-    // Incrementar contador de dígitos
-    add w2, w2, #1
-    
-    // Actualizar el dividendo y verificar si seguimos
-    mov w0, w4
-    cbnz w0, convertir_loop
-    
-    // Ajustar la dirección al inicio del número
-    add x1, x1, #1
-    
-    // Imprimir el número convertido
-    mov x0, #1               // STDOUT
-    mov x2, x2               // Longitud (cantidad de dígitos)
-    mov x8, #64              // write syscall
+    // Handle negative number
+    mov x0, #1                 // fd = 1 (stdout)
+    adr x1, minus_sign         // Address of minus sign
+    mov x2, #1                 // Length = 1
+    mov w8, #64                // Syscall write
     svc #0
     
-    // Imprimir salto de línea
-    mov x0, #1               // STDOUT
-    adr x1, newline          // Dirección del salto de línea
-    mov x2, #1               // Longitud (1 caracter)
-    mov x8, #64              // write syscall
+    neg x19, x19               // Make number positive
+    
+positive_number:
+    // Prepare buffer for converting result to ASCII
+    sub sp, sp, #32            // Reserve space on stack
+    mov x22, sp                // x22 points to buffer
+    
+    // Initialize digit counter
+    mov x23, #0                // Digit counter
+    
+    // Handle special case for zero
+    cmp x19, #0
+    bne convert_loop
+    
+    // If number is zero, just write '0'
+    mov w24, #48               // ASCII '0'
+    strb w24, [x22, x23]       // Store in buffer
+    add x23, x23, #1           // Increment counter
+    b print_result             // Skip conversion loop
+    
+convert_loop:
+    // Divide the number by 10
+    mov x24, #10
+    udiv x25, x19, x24         // x25 = x19 / 10 (quotient)
+    msub x26, x25, x24, x19    // x26 = x19 - (x25 * 10) (remainder)
+    
+    // Convert remainder to ASCII and store in buffer
+    add x26, x26, #48          // Convert to ASCII ('0' = 48)
+    strb w26, [x22, x23]       // Store digit in buffer
+    add x23, x23, #1           // Increment digit counter
+    
+    // Prepare for next iteration
+    mov x19, x25               // Quotient becomes the new number
+    cbnz x19, convert_loop     // If number is not zero, continue
+    
+    // Reverse the buffer since digits are in reverse order
+    mov x27, #0                // Start index
+reverse_loop:
+    sub x28, x23, x27          // x28 = length - current index
+    sub x28, x28, #1           // x28 = length - current index - 1
+    
+    cmp x27, x28               // Compare indices
+    bge print_result           // If crossed, finish reversing
+    
+    // Swap characters
+    ldrb w24, [x22, x27]       // Load character from start
+    ldrb w25, [x22, x28]       // Load character from end
+    strb w25, [x22, x27]       // Store end character at start
+    strb w24, [x22, x28]       // Store start character at end
+    
+    add x27, x27, #1           // Increment start index
+    b reverse_loop             // Continue reversing
+    
+print_result:
+    // Add newline
+    mov w24, #10               // Newline character
+    strb w24, [x22, x23]       // Add to end of buffer
+    add x23, x23, #1           // Increment counter
+    
+    // Print the result
+    mov x0, #1                 // fd = 1 (stdout)
+    mov x1, x22                // Buffer address
+    mov x2, x23                // Buffer length
+    mov w8, #64                // Syscall write
     svc #0
     
-    // Salir del programa
-    mov x0, #0               // Código de salida
-    mov x8, #93              // exit syscall
-    svc #0
+    // Clean up and restore registers
+    add sp, sp, #32            // Free buffer space
+    ldp x27, x28, [sp], #16    // Restore callee-saved registers
+    ldp x25, x26, [sp], #16
+    ldp x23, x24, [sp], #16
+    ldp x21, x22, [sp], #16
+    ldp x19, x20, [sp], #16
+    ldp x29, x30, [sp], #16    // Restore frame pointer and link register
+    ret                        // Return to caller
+
+minus_sign:
+    .ascii "-"               // Minus sign

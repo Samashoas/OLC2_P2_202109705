@@ -7,7 +7,7 @@ using api.Controllers;
 
 public class CompilerVisitor : LanguageBaseVisitor<Object?>
 {
-
+    public Generator GC = new Generator();
     public CompilerVisitor(){}
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>INICIO POGRAMA<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -40,6 +40,14 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitPrintStmt(LanguageParser.PrintStmtContext context)
     {
+        GC.Comment("--Print statement--");
+        foreach (var expr in context.expr())
+        {
+            Visit(expr);
+        }
+        GC.Comment("--Pop Value--");
+        GC.Pop(Register.X0);
+        GC.PrintInt(Register.X0);
         return null;
     }
     public override Object? VisitIdentifier(LanguageParser.IdentifierContext context)
@@ -192,6 +200,30 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitAddSub(LanguageParser.AddSubContext context)
     {
+        GC.Comment("--Add/Subtract--");
+        Visit(context.expr(0));
+        Visit(context.expr(1));
+
+        GC.Comment("--Pop Values R--");
+        GC.Pop(Register.X1);
+        GC.Comment("--Pop Values L--");
+        GC.Pop(Register.X0);
+
+        var op = context.op.Text;
+        if(op == "+")
+        {
+            GC.Add(Register.X0, Register.X0, Register.X1);
+        }
+        else if(op == "-")
+        {
+            GC.Sub(Register.X0, Register.X0, Register.X1);
+        }
+        else
+        {
+            throw new Exception("Unknown operator: " + op);
+        }
+        GC.Comment("--Push Result--");
+        GC.Push(Register.X0);
         return null;
     }
     public override Object? VisitImplicitAddSub(LanguageParser.ImplicitAddSubContext context)
@@ -231,7 +263,10 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         return null;
     }
     public override Object? VisitInteger(LanguageParser.IntegerContext context)
-    {
+    {   
+        GC.Comment("--Integer value--");
+        GC.Mov(Register.X0, int.Parse(context.INT().GetText()));
+        GC.Push(Register.X0);
         return null;
     }
     public override Object? VisitFloat(LanguageParser.FloatContext context)

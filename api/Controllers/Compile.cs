@@ -52,10 +52,14 @@ namespace api.Controllers
             {
                 var tree = parser.program();
 
-                var visitor = new InterpreterVisitor();
-                visitor.Visit(tree);
+                var Compiler = new CompilerVisitor();
+                Compiler.Visit(tree);
 
-                return Ok(new { success = true, result = visitor.output });
+                //var Interprete = new InterpreterVisitor();
+                //Interprete.Visit(tree);
+
+
+                return Ok(new { success = true, result = Compiler.GC.ToString() });
             }
             catch (ParseCanceledException ex)
             {

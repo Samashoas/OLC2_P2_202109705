@@ -1,4 +1,4 @@
-public static class Registers
+public static class Register
 {
     // General purpose registers
     public static string X0 => "x0";

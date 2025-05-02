@@ -1,89 +1,109 @@
+using System;
+using System.Collections.Generic;
 using System.Text;
-using System.Xml.Serialization;
 
-public class ARMGenerator
+public class Generator
 {
-    private readonly List<string> instruccion = new List<string>();
-    private readonly StandardLibrary std = new StandardLibrary();
+    private readonly List<string> instructions = new List<string>();
+    private readonly StandardLibrary standardLibrary = new StandardLibrary();
 
-    public void Add(string rd, string rs1, string rs2){
-        instruccion.Add($"ADD {rd}, {rs1}, {rs2}");
+    // Arithmetic operations
+    public void Add(string rd, string rs1, string rs2)
+    {
+        instructions.Add($"ADD {rd}, {rs1}, {rs2}");
     }
 
-    public void Sub(string rd, string rs1, string rs2){
-        instruccion.Add($"SUB {rd}, {rs1}, {rs2}");
+    public void Sub(string rd, string rs1, string rs2)
+    {
+        instructions.Add($"SUB {rd}, {rs1}, {rs2}");
     }
 
-    public void Mul(string rd, string rs1, string rs2){
-        instruccion.Add($"MUL {rd}, {rs1}, {rs2}");
+    public void Mul(string rd, string rs1, string rs2)
+    {
+        instructions.Add($"MUL {rd}, {rs1}, {rs2}");
     }
 
-    public void Div(string rd, string rs1, string rs2){
-        instruccion.Add($"DIV {rd}, {rs1}, {rs2}");
+    public void Div(string rd, string rs1, string rs2)
+    {
+        instructions.Add($"SDIV {rd}, {rs1}, {rs2}");
     }
 
-    public void Addi(string rd, string rs1, int imm){
-        instruccion.Add($"ADDI {rd}, {rs1}, #{imm}");
+    // Immediate operations
+    public void Addi(string rd, string rs1, int immediate)
+    {
+        instructions.Add($"ADD {rd}, {rs1}, #{immediate}");
     }
 
-    // Operadores de memoria
-
-    public void Str(string rs1, string rs2, int offset = 0){
-        instruccion.Add($"STR {rs1}, [{rs2}, #{offset}]");
+    // Memory operations
+    public void Str(string rs1, string rs2, int offset = 0)
+    {
+        instructions.Add($"STR {rs1}, [{rs2}, #{offset}]");
     }
 
-    public void Ldr(string rd, string rs1, int offset = 0){
-        instruccion.Add($"LDR {rd}, [{rs1}, #{offset}]");
+    public void Ldr(string rd, string rs1, int offset = 0)
+    {
+        instructions.Add($"LDR {rd}, [{rs1}, #{offset}]");
     }
 
-    public void Mov(string rd, int imm){
-        instruccion.Add($"MOV {rd}, #{imm}");
+    public void Mov(string rd, int immediate)
+    {
+        instructions.Add($"MOV {rd}, #{immediate}");
     }
 
-    public void Push(string rs){
-        instruccion.Add($"STR  {rs}, [SP, #-8]!");
+    // Stack operations
+    public void Push(string rd)
+    {
+        instructions.Add($"STR {rd}, [SP, #-8]!");
     }
 
-    public void Pop(string rd){
-        instruccion.Add($"LDR {rd}, [SP], #8");
+    public void Pop(string rd)
+    {
+        instructions.Add($"LDR {rd}, [SP], #8");
     }
 
-    public void Svc(){
-        instruccion.Add($"SVC #0");
+    // System calls
+    public void Svc()
+    {
+        instructions.Add("SVC #0");
     }
 
-    public void EndProgram(){
-        Mov(Registers.X0, 0);
-        Mov(Registers.X8, 93);
+    // Print integer function
+    public void PrintInt(string rd)
+    {
+        instructions.Add($"MOV x0, {rd}");
+        instructions.Add("BL print_integer");
+        standardLibrary.Use("print_integer");
+    }
+
+    public void EndProgram()
+    {
+        Mov(Register.X0, 0);
+        Mov(Register.X8, 93);
         Svc();
     }
 
-    public void Comment(string comment){
-        instruccion.Add($"// {comment}");
+    public void Comment(string text)
+    {
+        instructions.Add($"// {text}");
     }
 
-    public void PrintInteger(string rs){
-        std.Use("print_integer");
-        instruccion.Add($"MOV X0, {rs}");
-        instruccion.Add($"BL print_integer");
-    }
-
-    public override string ToString(){
+    public override string ToString()
+    {
         var sb = new StringBuilder();
-        sb.AppendLine(".data");
+        sb.AppendLine(".text");
         sb.AppendLine(".global _start");
         sb.AppendLine("_start:");
 
         EndProgram();
-        foreach (var instr in instruccion){
-            sb.AppendLine(instr);
+        foreach (var instruction in instructions)
+        {
+            sb.AppendLine($"    {instruction}");
         }
 
-        sb.AppendLine("\n\n\n// Standard Library Functions");
-        sb.AppendLine(std.GetFunctionDefinitions());
+
+        sb.AppendLine("\n\n\n// Standard library functions");
+        sb.AppendLine(standardLibrary.GetFunctionDefinitions());
 
         return sb.ToString();
     }
 }
-
-//CONTINUAR A PARTIR DE 2025/03/27 1:17:47
