@@ -57,12 +57,19 @@ _start:
     // --Integer value--
     MOV x0, #5
     STR x0, [SP, #-8]!
+    // --Add/Subtract--
     // --Integer value--
-    MOV x0, #4
+    MOV x0, #2
     STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #2
+    STR x0, [SP, #-8]!
+    // --Pop Values R--
+    LDR x1, [SP], #8
+    // --Pop Values L--
     LDR x0, [SP], #8
-    // --Negate--
-    NEG x0, x0
+    ADD x0, x0, x1
+    // --Push Result--
     STR x0, [SP, #-8]!
     // --Pop Values R--
     LDR x1, [SP], #8

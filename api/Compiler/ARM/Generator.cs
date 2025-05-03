@@ -2,10 +2,123 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
+public class StackObject{
+    public enum StackObjectType {Int, Float, String}
+    public StackObjectType Type {get; set;}
+    public int length {get; set;}
+    public int Depth {get; set;}
+    public string? Id{get; set;}
+}
+
 public class Generator
 {
     private readonly List<string> instructions = new List<string>();
     private readonly StandardLibrary standardLibrary = new StandardLibrary();
+
+    private List<StackObject> stack = new List<StackObject>();
+    private int stackDepth = 0;
+
+    // Stack management
+    public void PushObject(StackObject obj){
+        stack.Add(obj);
+    }
+
+    public void PushConstant(StackObject obj, object value)
+    {
+        switch(obj.Type){
+            case StackObject.StackObjectType.Int:
+                Mov(Register.X0, (int)value);
+                Push(Register.X0);
+                break;
+            case StackObject.StackObjectType.Float:
+                //TODO
+                break;
+            case StackObject.StackObjectType.String:
+                //TODO
+                break;
+        }
+        PushObject(obj);
+    }
+
+    public StackObject PopConstant(string rd)
+    {
+        var obj = stack.Last();
+        stack.RemoveAt(stack.Count - 1);
+        Pop(rd);
+        return obj;
+    }
+
+    //REPRESENTACIONES DE OBJETOS TIPO
+
+    public StackObject IntObject(){
+        return new StackObject{
+            Type = StackObject.StackObjectType.Int,
+            length = 8,
+            Depth = stackDepth,
+            Id = null
+        };
+    }
+    public StackObject FloatObject(){
+        return new StackObject{
+            Type = StackObject.StackObjectType.Float,
+            length = 8,
+            Depth = stackDepth,
+            Id = null
+        };
+    }
+    public StackObject StringObject(string value){
+        return new StackObject{
+            Type = StackObject.StackObjectType.String,
+            length = 8,
+            Depth = stackDepth,
+            Id = null
+        };
+    }
+    public StackObject CloneObject(StackObject obj){
+        return new StackObject{
+            Type = obj.Type,
+            length = obj.length,
+            Depth = stackDepth,
+            Id = obj.Id
+        };
+    }
+
+    // Entonrnos
+
+    public void NewScope(){
+        stackDepth++;
+    }
+
+    public int EndScope(){
+        int byteOffset = 0;
+
+        for(int i = stack.Count -1; i >= 0; i--){
+            if(stack[i].Depth == stackDepth){
+                byteOffset += stack[i].length;
+                stack.RemoveAt(i);
+            }else{
+                break;
+            }
+        }
+        stackDepth--;
+        return byteOffset;
+    }
+
+    public void TagObject(string id){
+        stack.Last().Id = id;
+    }
+
+    public(int, StackObject) GetObject(string id){
+        int byteOffset = 0;
+        for(int i = stack.Count - 1; i >= 0; i--){
+            if(stack[i].Id == id){
+                return (byteOffset, stack[i]);
+            }
+            byteOffset += stack[i].length;
+        }
+
+        throw new Exception($"Object {id} not found in stack");
+    }
 
     // Arithmetic operations
 

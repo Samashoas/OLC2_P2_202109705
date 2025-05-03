@@ -223,9 +223,9 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         Visit(context.expr(1));
 
         GC.Comment("--Pop Values R--");
-        GC.Pop(Register.X1);
+        var right = GC.PopConstant(Register.X1);
         GC.Comment("--Pop Values L--");
-        GC.Pop(Register.X0);
+        var left = GC.PopConstant(Register.X0);
 
         var op = context.op.Text;
         if(op == "+")
@@ -242,6 +242,8 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         }
         GC.Comment("--Push Result--");
         GC.Push(Register.X0);
+        GC.PushObject(GC.CloneObject(left));
+        GC.PushObject(GC.CloneObject(right));
         return null;
     }
     public override Object? VisitImplicitAddSub(LanguageParser.ImplicitAddSubContext context)
@@ -283,9 +285,10 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitInteger(LanguageParser.IntegerContext context)
     {   
+        var value = context.INT().GetText();
         GC.Comment("--Integer value--");
-        GC.Mov(Register.X0, int.Parse(context.INT().GetText()));
-        GC.Push(Register.X0);
+        var intObject = GC.IntObject();
+        GC.PushConstant(intObject, int.Parse(value));
         return null;
     }
     public override Object? VisitFloat(LanguageParser.FloatContext context)
