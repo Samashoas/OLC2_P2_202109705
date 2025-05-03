@@ -209,6 +209,11 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitNegate(LanguageParser.NegateContext context)
     {
+        Visit(context.expr());
+        GC.Pop(Register.X0);
+        GC.Comment("--Negate--");
+        GC.Neg(Register.X0, Register.X0);
+        GC.Push(Register.X0);
         return null;
     }
     public override Object? VisitAddSub(LanguageParser.AddSubContext context)

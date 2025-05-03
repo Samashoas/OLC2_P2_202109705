@@ -8,6 +8,10 @@ public class Generator
     private readonly StandardLibrary standardLibrary = new StandardLibrary();
 
     // Arithmetic operations
+
+    public void Neg(string rd, string rs){
+        instructions.Add($"NEG {rd}, {rs}");
+    }
     public void Add(string rd, string rs1, string rs2)
     {
         instructions.Add($"ADD {rd}, {rs1}, {rs2}");
