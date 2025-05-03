@@ -274,6 +274,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitParens(LanguageParser.ParensContext context)
     {
+        Visit(context.expr());
         return null;
     }
     public override Object? VisitCondition(LanguageParser.ConditionContext context)
