@@ -5,8 +5,30 @@ _start:
     // --Integer value--
     MOV x0, #2
     STR x0, [SP, #-8]!
+    // --Add/Subtract--
+    // --Add/Subtract--
     // --Integer value--
     MOV x0, #2
+    STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #2
+    STR x0, [SP, #-8]!
+    // --Pop Values R--
+    LDR x1, [SP], #8
+    // --Pop Values L--
+    LDR x0, [SP], #8
+    ADD x0, x0, x1
+    // --Push Result--
+    STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #3
+    STR x0, [SP, #-8]!
+    // --Pop Values R--
+    LDR x1, [SP], #8
+    // --Pop Values L--
+    LDR x0, [SP], #8
+    ADD x0, x0, x1
+    // --Push Result--
     STR x0, [SP, #-8]!
     // --Print values--
     // --Pop Value--
@@ -19,6 +41,50 @@ _start:
     LDR x0, [SP], #8
     MOV x0, x0
     BL print_integer
+    //print newline
+    BL print_newline
+    // --Print statement--
+    // --Integer value--
+    MOV x0, #3
+    STR x0, [SP, #-8]!
+    // --Add/Subtract--
+    // --Add/Subtract--
+    // --Integer value--
+    MOV x0, #2
+    STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #2
+    STR x0, [SP, #-8]!
+    // --Pop Values R--
+    LDR x1, [SP], #8
+    // --Pop Values L--
+    LDR x0, [SP], #8
+    ADD x0, x0, x1
+    // --Push Result--
+    STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #3
+    STR x0, [SP, #-8]!
+    // --Pop Values R--
+    LDR x1, [SP], #8
+    // --Pop Values L--
+    LDR x0, [SP], #8
+    SUB x0, x0, x1
+    // --Push Result--
+    STR x0, [SP, #-8]!
+    // --Print values--
+    // --Pop Value--
+    LDR x0, [SP], #8
+    MOV x0, x0
+    BL print_integer
+    //print space
+    BL print_space
+    // --Pop Value--
+    LDR x0, [SP], #8
+    MOV x0, x0
+    BL print_integer
+    //print newline
+    BL print_newline
     MOV x0, #0
     MOV x8, #93
     SVC #0
@@ -33,6 +99,7 @@ _start:
 // Input:
 //   x0 - The integer value to print
 //--------------------------------------------------------------
+.align 4
 print_integer:
     // Save registers
     stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
@@ -109,9 +176,9 @@ reverse_loop:
     
 print_result:
     // Add newline
-    mov w24, #10               // Newline character
-    strb w24, [x22, x23]       // Add to end of buffer
-    add x23, x23, #1           // Increment counter
+    //mov w24, #10               // Newline character
+    //strb w24, [x22, x23]       // Add to end of buffer
+    //add x23, x23, #1           // Increment counter
     
     // Print the result
     mov x0, #1                 // fd = 1 (stdout)
@@ -156,3 +223,28 @@ print_space:
 .align 4  // Añade esta línea para alinear la etiqueta de datos
 space_char:
     .ascii " "         // Space character
+
+
+
+//--------------------------------------------------------------
+// print_newline - Prints a newline character
+//--------------------------------------------------------------
+.align 4
+print_newline:
+    // Save link register
+    stp x29, x30, [sp, #-16]!
+    
+    // Print newline character
+    mov x0, #1           // fd = 1 (stdout)
+    adr x1, newline_char // address of newline
+    mov x2, #1           // length is 1 byte
+    mov w8, #64          // write syscall
+    svc #0
+    
+    // Restore registers and return
+    ldp x29, x30, [sp], #16
+    ret
+
+.align 4
+newline_char:
+    .ascii "\n"        // Newline character

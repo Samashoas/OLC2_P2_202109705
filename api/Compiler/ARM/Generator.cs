@@ -73,6 +73,12 @@ public class Generator
         standardLibrary.Use("print_space");
     }
 
+    public void PrintNewLine(){
+        instructions.Add("//print newline");
+        instructions.Add("BL print_newline");
+        standardLibrary.Use("print_newline");
+    }
+
     // Print integer function
     public void PrintInt(string rd)
     {

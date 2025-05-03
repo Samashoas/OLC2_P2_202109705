@@ -34,6 +34,7 @@ public class StandardLibrary
 // Input:
 //   x0 - The integer value to print
 //--------------------------------------------------------------
+.align 4
 print_integer:
     // Save registers
     stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
@@ -110,9 +111,9 @@ reverse_loop:
     
 print_result:
     // Add newline
-    mov w24, #10               // Newline character
-    strb w24, [x22, x23]       // Add to end of buffer
-    add x23, x23, #1           // Increment counter
+    //mov w24, #10               // Newline character
+    //strb w24, [x22, x23]       // Add to end of buffer
+    //add x23, x23, #1           // Increment counter
     
     // Print the result
     mov x0, #1                 // fd = 1 (stdout)
@@ -158,6 +159,31 @@ print_space:
 space_char:
     .ascii "" ""         // Space character
 " 
+},
+{ "print_newline", @"
+//--------------------------------------------------------------
+// print_newline - Prints a newline character
+//--------------------------------------------------------------
+.align 4
+print_newline:
+    // Save link register
+    stp x29, x30, [sp, #-16]!
+    
+    // Print newline character
+    mov x0, #1           // fd = 1 (stdout)
+    adr x1, newline_char // address of newline
+    mov x2, #1           // length is 1 byte
+    mov w8, #64          // write syscall
+    svc #0
+    
+    // Restore registers and return
+    ldp x29, x30, [sp], #16
+    ret
+
+.align 4
+newline_char:
+    .ascii ""\n""        // Newline character
+"
 },
     };
 }

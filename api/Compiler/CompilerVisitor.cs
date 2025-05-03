@@ -41,22 +41,26 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     public override Object? VisitPrintStmt(LanguageParser.PrintStmtContext context)
     {
         GC.Comment("--Print statement--");
-        foreach (var expr in context.expr())
+        for (int i = context.expr().Length - 1; i >= 0; i--)
         {
-            Visit(expr);
+            Visit(context.expr()[i]);  // Así colocas el valor de la derecha primero, luego el de la izquierda
         }
 
         int argPrint = context.expr().Length;
         GC.Comment("--Print values--");
-        for(int i = 0; i<argPrint; i++){
+        
+        for(int i = 0; i < argPrint; i++){
+
             GC.Comment("--Pop Value--");
             GC.Pop(Register.X0);
             GC.PrintInt(Register.X0);
+
             //AÑADIR ESPACIO ENTRE ARGUMENTOS
-             if(i < argPrint -1){
+             if(i < argPrint - 1){
                 GC.PrintSpace();
                 }
         }
+        GC.PrintNewLine();
         return null;
     }
     public override Object? VisitIdentifier(LanguageParser.IdentifierContext context)
