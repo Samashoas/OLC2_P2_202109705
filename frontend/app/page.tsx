@@ -15,6 +15,22 @@ export default function Home() {
   // Referencia para el input de tipo file (oculto)
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Función para copiar el texto de la consola al portapapeles
+  const handleCopyOutput = () => {
+    navigator.clipboard.writeText(output)
+      .then(() => {
+        // Opcional: mostrar una confirmación o feedback temporal
+        const tempOutput = output;
+        setOutput('¡Texto copiado al portapapeles!');
+        setTimeout(() => {
+          setOutput(tempOutput);
+        }, 1000);
+      })
+      .catch(err => {
+        console.error('Error al copiar texto: ', err);
+      });
+  };
+
   const handleExecute = () => {
     fetch(`${API_URL}/Compile`, {
       method: 'POST',
@@ -168,7 +184,22 @@ export default function Home() {
 
         {/* Terminal Output - Lado derecho */}
         <div className='w-1/2 flex flex-col'>
-          <h2 className='text-xl font-semibold mb-2'>Consola</h2>
+          <div className='flex justify-between items-center mb-2'>
+            <h2 className='text-xl font-semibold'>Consola</h2>
+            
+            {/* Botón para copiar el texto de la consola */}
+            <button
+              className='bg-gray-600 hover:bg-gray-700 text-white text-sm py-1 px-2 rounded flex items-center'
+              onClick={handleCopyOutput}
+              title="Copiar texto de la consola"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copiar
+            </button>
+          </div>
+          
           <div className='bg-gray-900 text-green-400 font-mono p-6 rounded-md border border-gray-700 overflow-auto h-[70vh]'>
             <pre className='whitespace-pre-wrap'>{output || 'Ejecuta código para ver el resultado...'}</pre>
             

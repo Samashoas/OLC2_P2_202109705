@@ -76,10 +76,21 @@ _start:
     // --Integer value--
     MOV x0, #2
     STR x0, [SP, #-8]!
+    // --Add/Subtract--
     // --Load variable a--
     MOV x0, #16
     ADD x0, sp, x0
     LDR x0, [x0, #0]
+    STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #2
+    STR x0, [SP, #-8]!
+    // --Pop Values R--
+    LDR x1, [SP], #8
+    // --Pop Values L--
+    LDR x0, [SP], #8
+    ADD x0, x0, x1
+    // --Push Result--
     STR x0, [SP, #-8]!
     // --Print values--
     // --POP value 2 print--
@@ -263,3 +274,4 @@ print_space:
 .align 4  // Añade esta línea para alinear la etiqueta de datos
 space_char:
     .ascii " "         // Space character
+
