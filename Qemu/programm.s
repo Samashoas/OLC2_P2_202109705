@@ -2,36 +2,38 @@
 .global _start
 _start:
     // --Variable Declaration--
-    // --Add/Subtract--
-    // --Add/Subtract--
     // --Integer value--
     MOV x0, #1
     STR x0, [SP, #-8]!
-    // --Integer value--
-    MOV x0, #2
+    // --Print statement--
+    // --Load variable a--
+    MOV x0, #0
+    ADD x0, sp, x0
+    LDR x0, [x0, #0]
     STR x0, [SP, #-8]!
-    // --Pop Values R--
-    LDR x1, [SP], #8
-    // --Pop Values L--
+    // --Print values--
+    // --POP value 2 print--
     LDR x0, [SP], #8
-    ADD x0, x0, x1
-    // --Push Result--
-    STR x0, [SP, #-8]!
-    // --Integer value--
-    MOV x0, #4
-    STR x0, [SP, #-8]!
-    // --Pop Values R--
-    LDR x1, [SP], #8
-    // --Pop Values L--
-    LDR x0, [SP], #8
-    SUB x0, x0, x1
-    // --Push Result--
-    STR x0, [SP, #-8]!
+    MOV x0, x0
+    BL print_integer
+    //print newline
+    BL print_newline
     // --Block Stmt--
     // --Variable Declaration--
     // --Integer value--
+    MOV x0, #4
+    STR x0, [SP, #-8]!
+    // --Assignment to a--
+    // --Integer value--
     MOV x0, #3
     STR x0, [SP, #-8]!
+    LDR x0, [SP], #8
+    MOV x1, #0
+    ADD x1, sp, x1
+    STR x0, [x1, #0]
+    STR x0, [SP, #-8]!
+    // --Pop para limpiar--
+    LDR x0, [SP], #8
     // --Print statement--
     // --Integer value--
     MOV x0, #1
@@ -39,6 +41,7 @@ _start:
     // --Integer value--
     MOV x0, #2
     STR x0, [SP, #-8]!
+    // --Load variable a--
     MOV x0, #16
     ADD x0, sp, x0
     LDR x0, [x0, #0]
@@ -68,25 +71,15 @@ _start:
     // Stack pointer updated
     // --Print statement--
     // --Integer value--
-    MOV x0, #3
+    MOV x0, #1
     STR x0, [SP, #-8]!
     // --Integer value--
     MOV x0, #2
     STR x0, [SP, #-8]!
-    // --Add/Subtract--
+    // --Load variable a--
     MOV x0, #16
     ADD x0, sp, x0
     LDR x0, [x0, #0]
-    STR x0, [SP, #-8]!
-    // --Integer value--
-    MOV x0, #2
-    STR x0, [SP, #-8]!
-    // --Pop Values R--
-    LDR x1, [SP], #8
-    // --Pop Values L--
-    LDR x0, [SP], #8
-    ADD x0, x0, x1
-    // --Push Result--
     STR x0, [SP, #-8]!
     // --Print values--
     // --POP value 2 print--
@@ -224,31 +217,6 @@ minus_sign:
 
 
 //--------------------------------------------------------------
-// print_space - Prints a space character to stdout
-//--------------------------------------------------------------
-.align 4  // Añade esta línea para alinear la etiqueta
-print_space:
-    // Save link register
-    stp x29, x30, [sp, #-16]!
-    
-    // Print space character
-    mov x0, #1           // fd = 1 (stdout)
-    adr x1, space_char   // address of space
-    mov x2, #1           // length is 1 byte
-    mov w8, #64          // write syscall
-    svc #0
-    
-    // Restore registers and return
-    ldp x29, x30, [sp], #16
-    ret
-
-.align 4  // Añade esta línea para alinear la etiqueta de datos
-space_char:
-    .ascii " "         // Space character
-
-
-
-//--------------------------------------------------------------
 // print_newline - Prints a newline character
 //--------------------------------------------------------------
 .align 4
@@ -270,3 +238,28 @@ print_newline:
 .align 4
 newline_char:
     .ascii "\n"        // Newline character
+
+
+
+//--------------------------------------------------------------
+// print_space - Prints a space character to stdout
+//--------------------------------------------------------------
+.align 4  // Añade esta línea para alinear la etiqueta
+print_space:
+    // Save link register
+    stp x29, x30, [sp, #-16]!
+    
+    // Print space character
+    mov x0, #1           // fd = 1 (stdout)
+    adr x1, space_char   // address of space
+    mov x2, #1           // length is 1 byte
+    mov w8, #64          // write syscall
+    svc #0
+    
+    // Restore registers and return
+    ldp x29, x30, [sp], #16
+    ret
+
+.align 4  // Añade esta línea para alinear la etiqueta de datos
+space_char:
+    .ascii " "         // Space character

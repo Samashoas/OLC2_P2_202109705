@@ -109,6 +109,7 @@ public class Generator
     }
 
     public(int, StackObject) GetObject(string id){
+        
         int byteOffset = 0;
         for(int i = stack.Count - 1; i >= 0; i--){
             if(stack[i].Id == id){

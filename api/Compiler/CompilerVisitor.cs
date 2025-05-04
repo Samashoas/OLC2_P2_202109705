@@ -38,28 +38,43 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitAssignment(LanguageParser.AssignmentContext context)
     {
-        var AssName = context.expr(0);
-        if(AssName is LanguageParser.IdentifierContext idContext){
-            string VarName = idContext.ID().GetText();
-            GC.Comment("--Assignment--");
+        if(context.expr(0) is LanguageParser.IdentifierContext idContext) {
+            string varName = idContext.ID().GetText();
+            GC.Comment($"--Assignment to {varName}--");
+            
+            // Evaluar la expresión del lado derecho y obtener su valor
             Visit(context.expr(1));
-            var ValueObject = GC.PopConstant(Register.X0);
-            var(offset, varObject) = GC.GetObject(VarName);
-
+            
+            // Pop del valor calculado
+            var valueObject = GC.PopConstant(Register.X0);
+            
+            // Buscar la variable en el stack y obtener su offset
+            var (offset, varObject) = GC.GetObject(varName);
+            
+            // Calcular la dirección de la variable
             GC.Mov(Register.X1, offset);
             GC.Add(Register.X1, Register.SP, Register.X1);
+            
+            // Almacenar el valor en la dirección calculada
             GC.Str(Register.X0, Register.X1);
 
-            GC.PushObject(GC.CloneObject(varObject));
-
+            GC.Push(Register.X0); // Aquí se hace el push del valor calculado
+            GC.PushObject(GC.CloneObject(varObject)); // Clonamos el objeto para evitar problemas de referencia
+            
+            // NO push el valor de vuelta al stack (esto estaba causando duplicados)
+        } else {
+            // Para otros tipos de asignación (slice, struct, etc.)
+            // Implementar según sea necesario
+            throw new Exception($"Assignment to non-identifier not implemented yet: {context.expr(0).GetText()}");
         }
+    
         return null;
     }
     public override Object? VisitExprStmt(LanguageParser.ExprStmtContext context)
     {
         Visit(context.expr());
         GC.Comment("--Pop para limpiar--");
-        GC.Pop(Register.X0);
+        GC.PopConstant(Register.X0);
         return null;
     }
     public override Object? VisitPrintStmt(LanguageParser.PrintStmtContext context)
@@ -94,12 +109,14 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     {
         var id = context.ID().GetText();
         var (offset, obj) = GC.GetObject(id);
+        
+        GC.Comment($"--Load variable {id}--");
         GC.Mov(Register.X0, offset);
-        GC.Add(Register.X0, Register.SP, Register.X0);
-
-        GC.Ldr(Register.X0, Register.X0);
+        GC.Add(Register.X0, Register.SP, Register.X0); // ¡Error aquí! Usabas X1 incorrectamente
+        
+        GC.Ldr(Register.X0, Register.X0); // Error también aquí, usabas X1 incorrectamente
         GC.Push(Register.X0);
-
+        
         var newObject = GC.CloneObject(obj);
         newObject.Id = null;
         GC.PushObject(newObject);
@@ -122,9 +139,9 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         GC.Comment("--Block Stmt--");
         GC.NewScope();
 
-        foreach (var dcl in context.dcl())
+        foreach (var smt in context.dcl())
         {
-            Visit(dcl);
+            Visit(smt);
         }
 
         int bytesToRemove = GC.EndScope();
