@@ -34,7 +34,16 @@ public class Generator
                 //TODO
                 break;
             case StackObject.StackObjectType.String:
-                //TODO
+                List<byte> StringArray = Utils.StringTo1ByteArray((string)value);
+                Push(Register.HP);
+                for(int i = 0; i< StringArray.Count; i++){
+                    var charCode = StringArray[i];
+                    Comment($"StringArray[{i}] = {charCode}");
+                    Mov("w0", charCode);
+                    Strb("w0", Register.HP);
+                    Mov(Register.X0, 1);
+                    Add(Register.HP, Register.HP, Register.X0);
+                }
                 break;
         }
         PushObject(obj);
@@ -66,7 +75,7 @@ public class Generator
             Id = null
         };
     }
-    public StackObject StringObject(string value){
+    public StackObject StringObject(){
         return new StackObject{
             Type = StackObject.StackObjectType.String,
             length = 8,
@@ -109,7 +118,7 @@ public class Generator
     }
 
     public(int, StackObject) GetObject(string id){
-        
+
         int byteOffset = 0;
         for(int i = stack.Count - 1; i >= 0; i--){
             if(stack[i].Id == id){
@@ -158,6 +167,9 @@ public class Generator
         instructions.Add($"STR {rs1}, [{rs2}, #{offset}]");
     }
 
+    public void Strb(string rs1, string rs2, int offset = 0){
+        instructions.Add($"STRB {rs1}, [{rs2}]");
+    }
     public void Ldr(string rd, string rs1, int offset = 0)
     {
         instructions.Add($"LDR {rd}, [{rs1}, #{offset}]");
@@ -205,6 +217,13 @@ public class Generator
         standardLibrary.Use("print_integer");
     }
 
+    public void PrintString(string rd)
+    {
+        instructions.Add($"MOV x0, {rd}");
+        instructions.Add("BL print_string");
+        standardLibrary.Use("print_string");
+    }
+
     public void EndProgram()
     {
         Mov(Register.X0, 0);
@@ -220,9 +239,12 @@ public class Generator
     public override string ToString()
     {
         var sb = new StringBuilder();
+        sb.AppendLine(".data");
+        sb.AppendLine("heap: .space 4096");
         sb.AppendLine(".text");
         sb.AppendLine(".global _start");
         sb.AppendLine("_start:");
+        sb.AppendLine("    adr x10, heap");
 
         EndProgram();
         foreach (var instruction in instructions)

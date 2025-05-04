@@ -185,5 +185,43 @@ newline_char:
     .ascii ""\n""        // Newline character
 "
 },
+{ "print_string", @"
+//--------------------------------------------------------------
+// print_string - Prints a null-terminated string to stdout
+//
+// Input:
+//   x0 - Address of the null-terminated string
+//--------------------------------------------------------------
+.align 4
+print_string:
+    // Save registers
+    stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
+    stp x19, x20, [sp, #-16]!  // Save callee-saved registers
+    
+    // Setup
+    mov x19, x0                // Save string address
+    
+    // Calculate string length
+    mov x20, #0                // Initialize length counter
+length_loop:
+    ldrb w0, [x19, x20]        // Load byte from string
+    cbz w0, print_it           // If byte is zero (null terminator), exit loop
+    add x20, x20, #1           // Increment length counter
+    b length_loop              // Continue loop
+    
+print_it:
+    // Print the string
+    mov x0, #1                 // fd = 1 (stdout)
+    mov x1, x19                // String address
+    mov x2, x20                // String length
+    mov w8, #64                // write syscall
+    svc #0
+    
+    // Restore registers and return
+    ldp x19, x20, [sp], #16    // Restore callee-saved registers
+    ldp x29, x30, [sp], #16    // Restore frame pointer and link register
+    ret
+"
+},
     };
 }

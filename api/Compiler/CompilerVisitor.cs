@@ -96,6 +96,10 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
 
             if(value.Type == StackObject.StackObjectType.Int){
                 GC.PrintInt(Register.X0);
+            }else if(value.Type == StackObject.StackObjectType.String){
+                GC.PrintString(Register.X0);
+            }else{
+                throw new Exception($"Unknown type for print: {value.Type}");
             }
             //AÑADIR ESPACIO ENTRE ARGUMENTOS
             if(i < argPrint - 1){
@@ -372,6 +376,10 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitString(LanguageParser.StringContext context)
     {
+        var value = context.STRING().GetText().Trim('"');
+        GC.Comment($"--String value: {value}--");
+        var stringObject = GC.StringObject();
+        GC.PushConstant(stringObject, value);
         return null;
     }
     public override Object? VisitBoolean(LanguageParser.BooleanContext context)
