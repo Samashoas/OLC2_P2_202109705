@@ -2,17 +2,107 @@
 .global _start
 _start:
     // --Variable Declaration--
+    // --Add/Subtract--
+    // --Add/Subtract--
     // --Integer value--
     MOV x0, #1
     STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #2
+    STR x0, [SP, #-8]!
+    // --Pop Values R--
+    LDR x1, [SP], #8
+    // --Pop Values L--
+    LDR x0, [SP], #8
+    ADD x0, x0, x1
+    // --Push Result--
+    STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #4
+    STR x0, [SP, #-8]!
+    // --Pop Values R--
+    LDR x1, [SP], #8
+    // --Pop Values L--
+    LDR x0, [SP], #8
+    SUB x0, x0, x1
+    // --Push Result--
+    STR x0, [SP, #-8]!
+    // --Block Stmt--
+    // --Variable Declaration--
+    // --Integer value--
+    MOV x0, #3
+    STR x0, [SP, #-8]!
     // --Print statement--
-    MOV x0, #0
+    // --Integer value--
+    MOV x0, #1
+    STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #2
+    STR x0, [SP, #-8]!
+    MOV x0, #16
     ADD x0, sp, x0
     LDR x0, [x0, #0]
     STR x0, [SP, #-8]!
+    // --Print values--
     // --POP value 2 print--
     LDR x0, [SP], #8
+    MOV x0, x0
+    BL print_integer
+    //print space
+    BL print_space
+    // --POP value 2 print--
+    LDR x0, [SP], #8
+    MOV x0, x0
+    BL print_integer
+    //print space
+    BL print_space
+    // --POP value 2 print--
+    LDR x0, [SP], #8
+    MOV x0, x0
+    BL print_integer
+    //print newline
+    BL print_newline
+    // --Pop 8 bytes--
+    MOV x0, #8
+    ADD sp, sp, x0
+    // Stack pointer updated
+    // --Print statement--
+    // --Integer value--
+    MOV x0, #3
+    STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #2
+    STR x0, [SP, #-8]!
+    // --Add/Subtract--
+    MOV x0, #16
+    ADD x0, sp, x0
+    LDR x0, [x0, #0]
+    STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #2
+    STR x0, [SP, #-8]!
+    // --Pop Values R--
+    LDR x1, [SP], #8
+    // --Pop Values L--
+    LDR x0, [SP], #8
+    ADD x0, x0, x1
+    // --Push Result--
+    STR x0, [SP, #-8]!
     // --Print values--
+    // --POP value 2 print--
+    LDR x0, [SP], #8
+    MOV x0, x0
+    BL print_integer
+    //print space
+    BL print_space
+    // --POP value 2 print--
+    LDR x0, [SP], #8
+    MOV x0, x0
+    BL print_integer
+    //print space
+    BL print_space
+    // --POP value 2 print--
+    LDR x0, [SP], #8
     MOV x0, x0
     BL print_integer
     //print newline
@@ -131,6 +221,31 @@ print_result:
 
 minus_sign:
     .ascii "-"               // Minus sign
+
+
+//--------------------------------------------------------------
+// print_space - Prints a space character to stdout
+//--------------------------------------------------------------
+.align 4  // Añade esta línea para alinear la etiqueta
+print_space:
+    // Save link register
+    stp x29, x30, [sp, #-16]!
+    
+    // Print space character
+    mov x0, #1           // fd = 1 (stdout)
+    adr x1, space_char   // address of space
+    mov x2, #1           // length is 1 byte
+    mov w8, #64          // write syscall
+    svc #0
+    
+    // Restore registers and return
+    ldp x29, x30, [sp], #16
+    ret
+
+.align 4  // Añade esta línea para alinear la etiqueta de datos
+space_char:
+    .ascii " "         // Space character
+
 
 
 //--------------------------------------------------------------

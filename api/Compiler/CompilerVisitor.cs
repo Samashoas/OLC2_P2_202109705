@@ -72,12 +72,13 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
 
         int argPrint = context.expr().Length;
 
-        GC.Comment("--POP value 2 print--");
-        var value = GC.PopConstant(Register.X0);
 
         GC.Comment("--Print values--");
         
         for(int i = 0; i < argPrint; i++){
+            GC.Comment("--POP value 2 print--");
+            var value = GC.PopConstant(Register.X0);
+
             if(value.Type == StackObject.StackObjectType.Int){
                 GC.PrintInt(Register.X0);
             }
