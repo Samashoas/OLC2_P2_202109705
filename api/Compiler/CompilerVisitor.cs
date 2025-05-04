@@ -20,6 +20,12 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitImpDer(LanguageParser.ImpDerContext context)
     {
+        var VarName = context.ID().GetText();
+
+        GC.Comment("--Variable Declaration--");
+        Visit(context.expr());
+        GC.TagObject(VarName);
+
         return null;
     }
     public override Object? VisitVarImpExpr(LanguageParser.VarImpExprContext context)
@@ -32,10 +38,28 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitAssignment(LanguageParser.AssignmentContext context)
     {
+        var AssName = context.expr(0);
+        if(AssName is LanguageParser.IdentifierContext idContext){
+            string VarName = idContext.ID().GetText();
+            GC.Comment("--Assignment--");
+            Visit(context.expr(1));
+            var ValueObject = GC.PopConstant(Register.X0);
+            var(offset, varObject) = GC.GetObject(VarName);
+
+            GC.Mov(Register.X1, offset);
+            GC.Add(Register.X1, Register.SP, Register.X1);
+            GC.Str(Register.X0, Register.X1);
+
+            GC.PushObject(GC.CloneObject(varObject));
+
+        }
         return null;
     }
     public override Object? VisitExprStmt(LanguageParser.ExprStmtContext context)
     {
+        Visit(context.expr());
+        GC.Comment("--Pop para limpiar--");
+        GC.Pop(Register.X0);
         return null;
     }
     public override Object? VisitPrintStmt(LanguageParser.PrintStmtContext context)
@@ -47,24 +71,37 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         }
 
         int argPrint = context.expr().Length;
+
+        GC.Comment("--POP value 2 print--");
+        var value = GC.PopConstant(Register.X0);
+
         GC.Comment("--Print values--");
         
         for(int i = 0; i < argPrint; i++){
-
-            GC.Comment("--Pop Value--");
-            GC.Pop(Register.X0);
-            GC.PrintInt(Register.X0);
-
+            if(value.Type == StackObject.StackObjectType.Int){
+                GC.PrintInt(Register.X0);
+            }
             //AÑADIR ESPACIO ENTRE ARGUMENTOS
-             if(i < argPrint - 1){
+            if(i < argPrint - 1){
                 GC.PrintSpace();
-                }
+            }
         }
         GC.PrintNewLine();
         return null;
     }
     public override Object? VisitIdentifier(LanguageParser.IdentifierContext context)
     {
+        var id = context.ID().GetText();
+        var (offset, obj) = GC.GetObject(id);
+        GC.Mov(Register.X0, offset);
+        GC.Add(Register.X0, Register.SP, Register.X0);
+
+        GC.Ldr(Register.X0, Register.X0);
+        GC.Push(Register.X0);
+
+        var newObject = GC.CloneObject(obj);
+        newObject.Id = null;
+        GC.PushObject(newObject);
         return null;
     }
     public override Object? VisitAtoiStmt(LanguageParser.AtoiStmtContext context)
@@ -81,6 +118,22 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitBlockStmt(LanguageParser.BlockStmtContext context)
     {
+        GC.Comment("--Block Stmt--");
+        GC.NewScope();
+
+        foreach (var dcl in context.dcl())
+        {
+            Visit(dcl);
+        }
+
+        int bytesToRemove = GC.EndScope();
+        if(bytesToRemove > 0)
+        {
+            GC.Comment($"--Pop {bytesToRemove} bytes--");
+            GC.Mov(Register.X0, bytesToRemove);
+            GC.Add(Register.SP, Register.SP, Register.X0);
+            GC.Comment("Stack pointer updated");
+        }
         return null;
     }
     public override Object? VisitIfStmt(LanguageParser.IfStmtContext context)
