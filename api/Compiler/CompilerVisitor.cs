@@ -288,10 +288,19 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     public override Object? VisitNegate(LanguageParser.NegateContext context)
     {
         Visit(context.expr());
-        GC.Pop(Register.X0);
-        GC.Comment("--Negate--");
-        GC.Neg(Register.X0, Register.X0);
-        GC.Push(Register.X0);
+        GC.Comment("--NEGATE--");
+
+        var isFloatValue = GC.TopObject().Type == StackObject.StackObjectType.Float;
+
+        if(isFloatValue){
+            GC.Pop(Register.D0);
+            GC.Fneg(Register.D0, Register.D0);
+            GC.Push(Register.D0);
+        }else{
+            GC.Pop(Register.X0);
+            GC.Neg(Register.X0, Register.X0);
+            GC.Push(Register.X0);
+        }
         return null;
     }
     public override Object? VisitAddSub(LanguageParser.AddSubContext context)

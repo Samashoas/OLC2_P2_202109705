@@ -172,6 +172,9 @@ public class Generator
     }
 
     //Float operations
+    public void Fneg(string rd, string rs){
+        instructions.Add($"FNEG {rd}, {rs}");
+    }
     public void Scvtf(string rd, string rs){
         instructions.Add($"SCVTF {rd}, {rs}");
     }

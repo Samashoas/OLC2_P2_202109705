@@ -10,6 +10,10 @@ _start:
     MOVK X0, #0xCCCC, LSL #32
     MOVK X0, #0x4023, LSL #48
     STR x0, [SP, #-8]!
+    // --NEGATE--
+    LDR d0, [SP], #8
+    FNEG d0, d0
+    STR d0, [SP, #-8]!
     // --Print values--
     // --POP value 2 print--
     LDR d0, [SP], #8
