@@ -19,6 +19,10 @@ public class Generator
     private int stackDepth = 0;
 
     // Stack management
+
+    public StackObject TopObject(){
+        return stack.Last();
+    }
     public void PushObject(StackObject obj){
         stack.Add(obj);
     }
@@ -31,7 +35,19 @@ public class Generator
                 Push(Register.X0);
                 break;
             case StackObject.StackObjectType.Float:
-                //TODO
+                long FloatBits = BitConverter.DoubleToInt64Bits((double)value);
+                ushort[] FloatParts = new ushort[4];
+                for(int i = 0; i < 4; i++)
+                {
+                    FloatParts[i] = (ushort)((FloatBits >> (i * 16)) & 0xFFFF);
+                }
+                instructions.Add($"MOVZ X0, #0x{FloatParts[0]:X4}, LSL #0");
+
+                for(int i = 1; i < 4; i++)
+                {
+                    instructions.Add($"MOVK X0, #0x{FloatParts[i]:X4}, LSL #{i * 16}");
+                }
+                Push(Register.X0);
                 break;
             case StackObject.StackObjectType.String:
                 List<byte> StringArray = Utils.StringTo1ByteArray((string)value);
@@ -155,6 +171,31 @@ public class Generator
         instructions.Add($"SDIV {rd}, {rs1}, {rs2}");
     }
 
+    //Float operations
+    public void Scvtf(string rd, string rs){
+        instructions.Add($"SCVTF {rd}, {rs}");
+    }
+
+    public void Fmov(string rd, string rs){
+        instructions.Add($"FMOV {rd}, {rs}");
+    }
+
+    public void Fadd(string rd, string rs1, string rs2){
+        instructions.Add($"FADD {rd}, {rs1}, {rs2}");
+    }
+
+    public void Fsub(string rd, string rs1, string rs2){
+        instructions.Add($"FSUB {rd}, {rs1}, {rs2}");
+    }
+
+    public void Fmul(string rd, string rs1, string rs2){
+        instructions.Add($"FMUL {rd}, {rs1}, {rs2}");
+    }
+
+    public void Fdiv(string rd, string rs1, string rs2){
+        instructions.Add($"FDIV {rd}, {rs1}, {rs2}");
+    }
+
     // Immediate operations
     public void Addi(string rd, string rs1, int immediate)
     {
@@ -215,6 +256,13 @@ public class Generator
         instructions.Add($"MOV x0, {rd}");
         instructions.Add("BL print_integer");
         standardLibrary.Use("print_integer");
+    }
+
+    public void PrintFloat()
+    {
+        standardLibrary.Use("print_integer");
+        standardLibrary.Use("print_double");
+        instructions.Add( "BL print_double");
     }
 
     public void PrintString(string rd)

@@ -92,10 +92,13 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         
         for(int i = 0; i < argPrint; i++){
             GC.Comment("--POP value 2 print--");
-            var value = GC.PopConstant(Register.X0);
+            var isDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+            var value = GC.PopConstant(isDouble? Register.D0 : Register.X0);
 
             if(value.Type == StackObject.StackObjectType.Int){
                 GC.PrintInt(Register.X0);
+            }else if(value.Type == StackObject.StackObjectType.Float){
+                GC.PrintFloat();
             }else if(value.Type == StackObject.StackObjectType.String){
                 GC.PrintString(Register.X0);
             }else{
@@ -298,18 +301,43 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         Visit(context.expr(1));
 
         GC.Comment("--Pop Values R--");
-        var right = GC.PopConstant(Register.X1);
+        var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var right = GC.PopConstant(isRightDouble? Register.D0 : Register.X0);
         GC.Comment("--Pop Values L--");
-        var left = GC.PopConstant(Register.X0);
+        var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var left = GC.PopConstant(isLeftDouble? Register.D1 : Register.X1);
 
         var op = context.op.Text;
+
+        if(isLeftDouble || isRightDouble){
+            if(!isLeftDouble) GC.Scvtf(Register.D1, Register.X1);// Convertir left a double
+            if(!isRightDouble) GC.Scvtf(Register.D0, Register.X0);// Convertir right a double
+
+            if(op == "+")
+            {
+                GC.Fadd(Register.D0, Register.D0, Register.D1);
+            }
+            else if(op == "-")
+            {
+                GC.Fsub(Register.D0, Register.D1, Register.D0);
+            }
+            else
+            {
+                throw new Exception("Unknown operator: " + op);
+            }
+            GC.Comment("--Push Result--");
+            GC.Push(Register.D0);
+            GC.PushObject(GC.CloneObject(isLeftDouble? left : right));
+        }
+
+        
         if(op == "+")
         {
             GC.Add(Register.X0, Register.X0, Register.X1);
         }
         else if(op == "-")
         {
-            GC.Sub(Register.X0, Register.X0, Register.X1);
+            GC.Sub(Register.X0, Register.X1, Register.X0);
         }
         else
         {
@@ -368,6 +396,11 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitFloat(LanguageParser.FloatContext context)
     {
+        var value = context.FLOAT().GetText();
+        var floatObject = GC.FloatObject();
+        double valueDouble = double.Parse(value, CultureInfo.InvariantCulture);
+        GC.PushConstant(floatObject, valueDouble);
+        //GC.PushConstant(floatObject, float.Parse(value, CultureInfo.InvariantCulture));
         return null;
     }
     public override Object? VisitRune(LanguageParser.RuneContext context)

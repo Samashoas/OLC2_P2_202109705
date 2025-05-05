@@ -5,87 +5,15 @@ heap: .space 4096
 _start:
     adr x10, heap
     // --Print statement--
-    // --Integer value--
-    MOV x0, #2
+    MOVZ X0, #0xCCCD, LSL #0
+    MOVK X0, #0xCCCC, LSL #16
+    MOVK X0, #0xCCCC, LSL #32
+    MOVK X0, #0x4023, LSL #48
     STR x0, [SP, #-8]!
-    // --String value: Hola mundo: --
-    STR x10, [SP, #-8]!
-    // StringArray[0] = 72
-    MOV w0, #72
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[1] = 111
-    MOV w0, #111
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[2] = 108
-    MOV w0, #108
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[3] = 97
-    MOV w0, #97
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[4] = 32
-    MOV w0, #32
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[5] = 109
-    MOV w0, #109
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[6] = 117
-    MOV w0, #117
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[7] = 110
-    MOV w0, #110
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[8] = 100
-    MOV w0, #100
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[9] = 111
-    MOV w0, #111
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[10] = 58
-    MOV w0, #58
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[11] = 32
-    MOV w0, #32
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[12] = 0
-    MOV w0, #0
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
     // --Print values--
     // --POP value 2 print--
-    LDR x0, [SP], #8
-    MOV x0, x0
-    BL print_string
-    //print space
-    BL print_space
-    // --POP value 2 print--
-    LDR x0, [SP], #8
-    MOV x0, x0
-    BL print_integer
+    LDR d0, [SP], #8
+    BL print_double
     //print newline
     BL print_newline
     MOV x0, #0
@@ -97,75 +25,11 @@ _start:
 // Standard library functions
 
 //--------------------------------------------------------------
-// print_string - Prints a null-terminated string to stdout
-//
-// Input:
-//   x0 - Address of the null-terminated string
-//--------------------------------------------------------------
-.align 4
-print_string:
-    // Save registers
-    stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
-    stp x19, x20, [sp, #-16]!  // Save callee-saved registers
-    
-    // Setup
-    mov x19, x0                // Save string address
-    
-    // Calculate string length
-    mov x20, #0                // Initialize length counter
-length_loop:
-    ldrb w0, [x19, x20]        // Load byte from string
-    cbz w0, print_it           // If byte is zero (null terminator), exit loop
-    add x20, x20, #1           // Increment length counter
-    b length_loop              // Continue loop
-    
-print_it:
-    // Print the string
-    mov x0, #1                 // fd = 1 (stdout)
-    mov x1, x19                // String address
-    mov x2, x20                // String length
-    mov w8, #64                // write syscall
-    svc #0
-    
-    // Restore registers and return
-    ldp x19, x20, [sp], #16    // Restore callee-saved registers
-    ldp x29, x30, [sp], #16    // Restore frame pointer and link register
-    ret
-
-
-
-//--------------------------------------------------------------
-// print_space - Prints a space character to stdout
-//--------------------------------------------------------------
-.align 4  // Añade esta línea para alinear la etiqueta
-print_space:
-    // Save link register
-    stp x29, x30, [sp, #-16]!
-    
-    // Print space character
-    mov x0, #1           // fd = 1 (stdout)
-    adr x1, space_char   // address of space
-    mov x2, #1           // length is 1 byte
-    mov w8, #64          // write syscall
-    svc #0
-    
-    // Restore registers and return
-    ldp x29, x30, [sp], #16
-    ret
-
-.align 4  // Añade esta línea para alinear la etiqueta de datos
-space_char:
-    .ascii " "         // Space character
-
-
-
-//--------------------------------------------------------------
 // print_integer - Prints a signed integer to stdout
 //
 // Input:
 //   x0 - The integer value to print
 //--------------------------------------------------------------
-.align 4
 print_integer:
     // Save registers
     stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
@@ -241,11 +105,6 @@ reverse_loop:
     b reverse_loop             // Continue reversing
     
 print_result:
-    // Add newline
-    //mov w24, #10               // Newline character
-    //strb w24, [x22, x23]       // Add to end of buffer
-    //add x23, x23, #1           // Increment counter
-    
     // Print the result
     mov x0, #1                 // fd = 1 (stdout)
     mov x1, x22                // Buffer address
@@ -262,15 +121,114 @@ print_result:
     ldp x19, x20, [sp], #16
     ldp x29, x30, [sp], #16    // Restore frame pointer and link register
     ret                        // Return to caller
+    
 
-minus_sign:
-    .ascii "-"               // Minus sign
+//--------------------------------------------------------------
+// print_double - Prints a double precision float to stdout
+//
+// Input:
+//   d0 - The double value to print
+//--------------------------------------------------------------
+print_double:
+    // Save context
+    stp x29, x30, [sp, #-16]!    
+    stp x19, x20, [sp, #-16]!
+    stp x21, x22, [sp, #-16]!
+    stp x23, x24, [sp, #-16]!
+    
+    // Check if number is negative
+    fmov x19, d0
+    tst x19, #(1 << 63)       // Comprueba el bit de signo
+    beq skip_minus
 
+    // Print minus sign
+    mov x0, #1
+    adr x1, minus_sign
+    mov x2, #1
+    mov x8, #64
+    svc #0
+
+    // Make value positive
+    fneg d0, d0
+
+skip_minus:
+    // Convert integer part
+    fcvtzs x0, d0             // x0 = int(d0)
+    bl print_integer
+
+    // Print dot '.'
+    mov x0, #1
+    adr x1, dot_char
+    mov x2, #1
+    mov x8, #64
+    svc #0
+
+    // Get fractional part: frac = d0 - float(int(d0))
+    frintm d4, d0             // d4 = floor(d0)
+    fsub d2, d0, d4           // d2 = d0 - floor(d0) (exact fraction)
+
+    // Para 2.5, d2 debe ser exactamente 0.5
+
+    // Multiplicar por 1_000_000 (6 decimales)
+    movz x1, #0x000F, lsl #16
+    movk x1, #0x4240, lsl #0   // x1 = 1000000
+    scvtf d3, x1              // d3 = 1000000.0
+    fmul d2, d2, d3           // d2 = frac * 1_000_000
+    
+    // Redondear al entero más cercano para evitar errores de precisión
+    frintn d2, d2             // d2 = round(d2)
+    fcvtzs x0, d2             // x0 = int(d2)
+
+    // Imprimir ceros a la izquierda si es necesario
+    mov x20, x0               // x20 = fracción entera
+    movz x21, #0x0001, lsl #16
+    movk x21, #0x86A0, lsl #0  // x21 = 100000
+    mov x22, #0               // inicializar contador de ceros
+    mov x23, #10              // constante para división
+
+leading_zero_loop:
+    udiv x24, x20, x21        // x24 = x20 / x21
+    cbnz x24, done_leading_zeros  // Si hay un dígito no cero, salir del bucle
+
+    // Imprimir '0'
+    mov x0, #1
+    adr x1, zero_char
+    mov x2, #1
+    mov x8, #64
+    svc #0
+
+    udiv x21, x21, x23        // x21 /= 10
+    add x22, x22, #1          // incrementar contador de ceros
+    cmp x21, #0               // verificar si llegamos al final
+    beq print_remaining       // si divisor es 0, saltar a imprimir el resto
+    b leading_zero_loop
+
+done_leading_zeros:
+    // Print the remaining fractional part
+    mov x0, x20
+    bl print_integer
+    b exit_function
+
+print_remaining:
+    // Caso especial cuando la parte fraccionaria es 0 después de imprimir ceros
+    cmp x20, #0
+    bne exit_function
+    
+    // Ya imprimimos todos los ceros necesarios
+    // No hace falta imprimir nada más
+
+exit_function:
+    // Restore context
+    ldp x23, x24, [sp], #16
+    ldp x21, x22, [sp], #16
+    ldp x19, x20, [sp], #16
+    ldp x29, x30, [sp], #16
+    ret
+    
 
 //--------------------------------------------------------------
 // print_newline - Prints a newline character
 //--------------------------------------------------------------
-.align 4
 print_newline:
     // Save link register
     stp x29, x30, [sp, #-16]!
@@ -285,8 +243,8 @@ print_newline:
     // Restore registers and return
     ldp x29, x30, [sp], #16
     ret
-
-.align 4
-newline_char:
-    .ascii "\n"        // Newline character
-
+    
+minus_sign: .ascii "-"
+dot_char: .ascii "."
+zero_char: .ascii "0"
+newline_char: .ascii "\n"
