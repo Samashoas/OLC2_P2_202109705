@@ -312,6 +312,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         GC.Comment("--Pop Values R--");
         var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
         var right = GC.PopConstant(isRightDouble? Register.D0 : Register.X0);
+        
         GC.Comment("--Pop Values L--");
         var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
         var left = GC.PopConstant(isLeftDouble? Register.D1 : Register.X1);
@@ -319,8 +320,8 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         var op = context.op.Text;
 
         if(isLeftDouble || isRightDouble){
-            if(!isLeftDouble) GC.Scvtf(Register.D1, Register.X1);// Convertir left a double
             if(!isRightDouble) GC.Scvtf(Register.D0, Register.X0);// Convertir right a double
+            if(!isLeftDouble) GC.Scvtf(Register.D1, Register.X1);// Convertir left a double
 
             if(op == "+")
             {
@@ -337,25 +338,24 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
             GC.Comment("--Push Result--");
             GC.Push(Register.D0);
             GC.PushObject(GC.CloneObject(isLeftDouble? left : right));
+        }else{
+            if(op == "+")
+            {
+                GC.Add(Register.X0, Register.X0, Register.X1);
+            }
+            else if(op == "-")
+            {
+                GC.Sub(Register.X0, Register.X1, Register.X0);
+            }
+            else
+            {
+                throw new Exception("Unknown operator: " + op);
+            }
+            GC.Comment("--Push Result--");
+            GC.Push(Register.X0);
+            GC.PushObject(GC.CloneObject(left));
+            GC.PushObject(GC.CloneObject(right));
         }
-
-        
-        if(op == "+")
-        {
-            GC.Add(Register.X0, Register.X0, Register.X1);
-        }
-        else if(op == "-")
-        {
-            GC.Sub(Register.X0, Register.X1, Register.X0);
-        }
-        else
-        {
-            throw new Exception("Unknown operator: " + op);
-        }
-        GC.Comment("--Push Result--");
-        GC.Push(Register.X0);
-        GC.PushObject(GC.CloneObject(left));
-        GC.PushObject(GC.CloneObject(right));
         return null;
     }
     public override Object? VisitImplicitAddSub(LanguageParser.ImplicitAddSubContext context)
