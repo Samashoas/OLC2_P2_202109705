@@ -8,6 +8,8 @@ using api.Controllers;
 public class CompilerVisitor : LanguageBaseVisitor<Object?>
 {
     public Generator GC = new Generator();
+    private string continueLabel = "";
+    private string breakLabel = "";
     public CompilerVisitor(){}
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>INICIO POGRAMA<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -201,6 +203,102 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitForStmt(LanguageParser.ForStmtContext context)
     {
+        if(context.forInit() != null){
+            return HandleForClasssic(context);
+        }else{
+            return HandleForCondition(context);
+        }
+    }
+    //For
+    private Object? HandleForClasssic(LanguageParser.ForStmtContext context)
+    {
+        var previousContinueLabel = continueLabel;
+        var previousBreakLabel = breakLabel;
+
+        var startLabel = GC.GetLable();
+        var endLabel = GC.GetLable();
+        var incrementLabel = GC.GetLable();
+
+        continueLabel = incrementLabel;
+        breakLabel = endLabel;
+
+        GC.NewScope();
+
+        GC.Comment("--For CLASSIC--");
+        // Visit the initialization part (forInit)
+        if (context.forInit() != null)
+        {
+            Visit(context.forInit());
+        }
+        
+        GC.SetLable(startLabel);
+        
+        // Visit the condition (expr[0])
+        if (context.expr() != null && context.expr().Length > 0)
+        {
+            GC.Comment("--For condition--");
+            Visit(context.expr(0));
+            GC.PopConstant(Register.X0);
+            GC.cbz(Register.X0, endLabel);
+        }
+
+        // Visit the body
+        GC.Comment("--For CLASSIC body--");
+        Visit(context.stmt());
+        
+        // Continue label for increment
+        GC.SetLable(incrementLabel);
+        GC.Comment("--For CLASSIC increment--");
+        
+        // Visit the increment expression (expr[1])
+        if (context.expr() != null && context.expr().Length > 1)
+        {
+            Visit(context.expr(1));
+            //GC.PopConstant(Register.X0); // Clean up stack after expression
+        }
+        
+        GC.B(startLabel); // Jump back to start
+        GC.SetLable(endLabel);
+
+        var bytesToRemove = GC.EndScope();
+        if (bytesToRemove > 0)
+        {
+            GC.Comment($"--Pop {bytesToRemove} bytes--");
+            GC.Mov(Register.X0, bytesToRemove);
+            GC.Add(Register.SP, Register.SP, Register.X0);
+            GC.Comment("Stack pointer updated");
+        }
+
+        GC.Comment("--End For CLASSIC--");
+        continueLabel = previousContinueLabel;
+        breakLabel = previousBreakLabel;
+
+        return null;
+    }
+    //While
+    private Object? HandleForCondition(LanguageParser.ForStmtContext context)
+    {
+        var previousContinueLabel = continueLabel;
+        var previousBreakLabel = breakLabel;
+
+        var startLabel = GC.GetLable();
+        var endLabel = GC.GetLable();
+
+        continueLabel = startLabel;
+        breakLabel = endLabel;
+
+        GC.SetLable(startLabel);
+        GC.Comment("--For WHILE condition--");
+        Visit(context.condition());
+        GC.PopConstant(Register.X0);
+        GC.cbz(Register.X0, endLabel);
+        GC.Comment("--For WHILE body--");
+        Visit(context.stmt());
+        GC.B(startLabel);
+        GC.SetLable(endLabel);
+
+        continueLabel = previousContinueLabel;
+        breakLabel = previousBreakLabel;
         return null;
     }
     public override Object? VisitRangeInit(LanguageParser.RangeInitContext context)
@@ -209,10 +307,15 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitBreakStmt(LanguageParser.BreakStmtContext context)
     {
+        GC.Comment("--Break statement--");
+        GC.B(breakLabel);
+
         return null;
     }
     public override Object? VisitContinueStmt(LanguageParser.ContinueStmtContext context)
     {
+        GC.Comment("--Continue statement--");
+        GC.B(continueLabel);
         return null;
     }
     public override Object? VisitReturnStmt(LanguageParser.ReturnStmtContext context)
