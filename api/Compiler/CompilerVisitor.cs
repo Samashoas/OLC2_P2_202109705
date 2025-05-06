@@ -411,7 +411,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
             return null;
         }
 
-        GC.Cmp(Register.X0, Register.X1);
+        GC.Cmp(Register.X1, Register.X0);
         var trueLabel = GC.GetLable();
         var endLabel = GC.GetLable();
 
@@ -429,18 +429,15 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
             case ">=":
                 GC.Bge(trueLabel);
                 break;
-            case "==":
-                GC.Beq(trueLabel);
-                break;
-            case "!=":
-                GC.Bne(trueLabel);
-                break;
             default:
                 throw new Exception($"Unknown relational operator: {operation}");
         }
+        //Set que el valor es falso
         GC.Mov(Register.X0, 0);
         GC.Push(Register.X0);
-        GC.Beq(endLabel);
+        GC.B(endLabel);
+
+        //Set que valor es verdadero
         GC.SetLable(trueLabel);
         GC.Mov(Register.X0, 1);
         GC.Push(Register.X0);
@@ -451,6 +448,49 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitEquality (LanguageParser.EqualityContext context)
     {
+        GC.Comment("--Equality--");
+        var operation = context.op.Text;
+        Visit(context.expr(0));
+        Visit(context.expr(1));
+
+        GC.Comment("--Pop Values R--");
+        var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var right = GC.PopConstant(isRightDouble? Register.D0 : Register.X0);
+
+        GC.Comment("--Pop Values L--");
+        var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var left = GC.PopConstant(isLeftDouble? Register.D1 : Register.X1);
+
+        if(isLeftDouble || isRightDouble){
+            return null;
+        }
+
+        GC.Cmp(Register.X1, Register.X0);
+        var trueLabel = GC.GetLable();
+        var endLabel = GC.GetLable();
+
+        switch (operation)
+        {
+            case "==":
+                GC.Beq(trueLabel);
+                break;
+            case "!=":
+                GC.Bne(trueLabel);
+                break;
+            default:
+                throw new Exception($"Unknown equality operator: {operation}");
+        }
+
+        GC.Mov(Register.X0, 0); // false
+        GC.Push(Register.X0);
+        GC.B(endLabel);
+
+        GC.SetLable(trueLabel);
+        GC.Mov(Register.X0, 1); // true
+        GC.Push(Register.X0);
+        GC.SetLable(endLabel);
+
+        GC.PushObject(GC.BoolObject());
         return null;
     }
     public override Object? VisitLogicalOr(LanguageParser.LogicalOrContext context)

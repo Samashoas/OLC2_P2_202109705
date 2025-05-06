@@ -6,74 +6,31 @@ _start:
     adr x10, heap
     // --If statement--
     // --Evaluating condition--
-    // --Constant false--
+    // --Equality--
+    // --Integer value--
+    MOV x0, #2
+    STR x0, [SP, #-8]!
+    // --Integer value--
+    MOV x0, #2
+    STR x0, [SP, #-8]!
+    // --Pop Values R--
+    LDR x0, [SP], #8
+    // --Pop Values L--
+    LDR x1, [SP], #8
+    CMP x1, x0
+    BEQ L0
     MOV x0, #0
     STR x0, [SP, #-8]!
-    LDR x0, [SP], #8
-    CBZ x0, L0
-    // --Block Stmt--
-    // --Print statement--
-    // --String value: Hola if--
-    STR x10, [SP, #-8]!
-    // StringArray[0] = 72
-    MOV w0, #72
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[1] = 111
-    MOV w0, #111
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[2] = 108
-    MOV w0, #108
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[3] = 97
-    MOV w0, #97
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[4] = 32
-    MOV w0, #32
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[5] = 105
-    MOV w0, #105
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[6] = 102
-    MOV w0, #102
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[7] = 0
-    MOV w0, #0
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // --Print values--
-    // --POP value 2 print--
-    LDR x0, [SP], #8
-    MOV x0, x0
-    BL print_string
-    //print newline
-    BL print_newline
     B L1
     L0:
-    // --If statement--
-    // --Evaluating condition--
-    // --Constant true--
     MOV x0, #1
     STR x0, [SP, #-8]!
+    L1:
     LDR x0, [SP], #8
     CBZ x0, L2
     // --Block Stmt--
     // --Print statement--
-    // --String value: Hola if-else--
+    // --String value: Hola igual--
     STR x10, [SP, #-8]!
     // StringArray[0] = 72
     MOV w0, #72
@@ -105,18 +62,18 @@ _start:
     STRB w0, [x10]
     MOV x0, #1
     ADD x10, x10, x0
-    // StringArray[6] = 102
-    MOV w0, #102
+    // StringArray[6] = 103
+    MOV w0, #103
     STRB w0, [x10]
     MOV x0, #1
     ADD x10, x10, x0
-    // StringArray[7] = 45
-    MOV w0, #45
+    // StringArray[7] = 117
+    MOV w0, #117
     STRB w0, [x10]
     MOV x0, #1
     ADD x10, x10, x0
-    // StringArray[8] = 101
-    MOV w0, #101
+    // StringArray[8] = 97
+    MOV w0, #97
     STRB w0, [x10]
     MOV x0, #1
     ADD x10, x10, x0
@@ -125,17 +82,7 @@ _start:
     STRB w0, [x10]
     MOV x0, #1
     ADD x10, x10, x0
-    // StringArray[10] = 115
-    MOV w0, #115
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[11] = 101
-    MOV w0, #101
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[12] = 0
+    // StringArray[10] = 0
     MOV w0, #0
     STRB w0, [x10]
     MOV x0, #1
@@ -147,71 +94,7 @@ _start:
     BL print_string
     //print newline
     BL print_newline
-    B L3
     L2:
-    // --Block Stmt--
-    // --Print statement--
-    // --String value: Hola else--
-    STR x10, [SP, #-8]!
-    // StringArray[0] = 72
-    MOV w0, #72
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[1] = 111
-    MOV w0, #111
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[2] = 108
-    MOV w0, #108
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[3] = 97
-    MOV w0, #97
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[4] = 32
-    MOV w0, #32
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[5] = 101
-    MOV w0, #101
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[6] = 108
-    MOV w0, #108
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[7] = 115
-    MOV w0, #115
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[8] = 101
-    MOV w0, #101
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[9] = 0
-    MOV w0, #0
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // --Print values--
-    // --POP value 2 print--
-    LDR x0, [SP], #8
-    MOV x0, x0
-    BL print_string
-    //print newline
-    BL print_newline
-    L3:
-    L1:
     MOV x0, #0
     MOV x8, #93
     SVC #0
