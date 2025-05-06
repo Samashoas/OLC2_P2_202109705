@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 
 public class StackObject{
-    public enum StackObjectType {Int, Float, String}
+    public enum StackObjectType {Int, Float, String, Bool}
     public StackObjectType Type {get; set;}
     public int length {get; set;}
     public int Depth {get; set;}
@@ -14,12 +14,19 @@ public class Generator
 {
     private readonly List<string> instructions = new List<string>();
     private readonly StandardLibrary standardLibrary = new StandardLibrary();
+    private int lableCounter = 0;
 
     private List<StackObject> stack = new List<StackObject>();
     private int stackDepth = 0;
 
     // Stack management
+    public String GetLable(){
+        return $"L{lableCounter++}";
+    }
 
+    public void SetLable(string label){
+        instructions.Add($"{label}:");
+    }
     public StackObject TopObject(){
         return stack.Last();
     }
@@ -32,6 +39,10 @@ public class Generator
         switch(obj.Type){
             case StackObject.StackObjectType.Int:
                 Mov(Register.X0, (int)value);
+                Push(Register.X0);
+                break;
+            case StackObject.StackObjectType.Bool:
+                Mov(Register.X0, (bool)value ? 1 : 0);
                 Push(Register.X0);
                 break;
             case StackObject.StackObjectType.Float:
@@ -78,6 +89,14 @@ public class Generator
     public StackObject IntObject(){
         return new StackObject{
             Type = StackObject.StackObjectType.Int,
+            length = 8,
+            Depth = stackDepth,
+            Id = null
+        };
+    }
+        public StackObject BoolObject(){
+        return new StackObject{
+            Type = StackObject.StackObjectType.Bool,
             length = 8,
             Depth = stackDepth,
             Id = null
@@ -197,6 +216,43 @@ public class Generator
 
     public void Fdiv(string rd, string rs1, string rs2){
         instructions.Add($"FDIV {rd}, {rs1}, {rs2}");
+    }
+
+    //Relational operations
+
+    public void Cmp(string rs1, object rs2)
+    {
+    string rs2Str = rs2 is int ? $"#{rs2}" : rs2.ToString();
+    instructions.Add($"CMP {rs1}, {rs2Str}");
+    }
+
+    public void cbz(string rs, string label){
+        instructions.Add($"CBZ {rs}, {label}");
+    }
+
+    public void B(string label){
+        instructions.Add($"B {label}");
+    }
+    public void Beq(string label){
+        instructions.Add($"BEQ {label}");
+    }
+    public void Bne(string label){
+        instructions.Add($"BNE {label}");
+    }
+    public void Blt(string label){
+        instructions.Add($"BLT {label}");
+    }
+    public void Bgt(string label){
+        instructions.Add($"BGT {label}");
+    }
+    public void Bge(string label){
+        instructions.Add($"BGE {label}");
+    }
+    public void Ble(string label){
+        instructions.Add($"BLE {label}");
+    }
+    public void Ret(){
+        instructions.Add($"RET");
     }
 
     // Immediate operations

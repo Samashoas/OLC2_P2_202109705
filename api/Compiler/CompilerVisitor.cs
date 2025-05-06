@@ -163,6 +163,28 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitIfStmt(LanguageParser.IfStmtContext context)
     {
+        GC.Comment("--If statement--");
+        Visit(context.condition());
+        GC.PopConstant(Register.X0);
+
+        var HasElse = context.stmt().Length > 1;
+
+        if(HasElse){
+            var elseLabel = GC.GetLable();
+            var endLabel = GC.GetLable();
+
+            GC.cbz(Register.X0, elseLabel);
+            Visit(context.stmt(0));
+            GC.B(endLabel);
+            GC.SetLable(elseLabel);
+            Visit(context.stmt(1));
+            GC.SetLable(endLabel);
+        }else{
+            var endLabel = GC.GetLable();
+            GC.cbz(Register.X0, endLabel);
+            Visit(context.stmt(0));
+            GC.SetLable(endLabel);
+        }
         return null;
     }
     public override Object? VisitSwitchStmt(LanguageParser.SwitchStmtContext context)
@@ -372,6 +394,59 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitRelational (LanguageParser.RelationalContext context)
     {
+        GC.Comment("--Relational--");
+        var operation = context.op.Text;
+        Visit(context.expr(0));
+        Visit(context.expr(1));
+
+        GC.Comment("--Pop Values R--");
+        var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var right = GC.PopConstant(isRightDouble? Register.D0 : Register.X0);
+        
+        GC.Comment("--Pop Values L--");
+        var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var left = GC.PopConstant(isLeftDouble? Register.D1 : Register.X1);
+
+        if(isLeftDouble || isRightDouble){
+            return null;
+        }
+
+        GC.Cmp(Register.X0, Register.X1);
+        var trueLabel = GC.GetLable();
+        var endLabel = GC.GetLable();
+
+        switch (operation)
+        {
+            case "<":
+                GC.Blt(trueLabel);
+                break;
+            case "<=":
+                GC.Ble(trueLabel);
+                break;
+            case ">":
+                GC.Bgt(trueLabel);
+                break;
+            case ">=":
+                GC.Bge(trueLabel);
+                break;
+            case "==":
+                GC.Beq(trueLabel);
+                break;
+            case "!=":
+                GC.Bne(trueLabel);
+                break;
+            default:
+                throw new Exception($"Unknown relational operator: {operation}");
+        }
+        GC.Mov(Register.X0, 0);
+        GC.Push(Register.X0);
+        GC.Beq(endLabel);
+        GC.SetLable(trueLabel);
+        GC.Mov(Register.X0, 1);
+        GC.Push(Register.X0);
+        GC.SetLable(endLabel);
+
+        GC.PushObject(GC.BoolObject());
         return null;
     }
     public override Object? VisitEquality (LanguageParser.EqualityContext context)
@@ -393,6 +468,30 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitCondition(LanguageParser.ConditionContext context)
     {
+        GC.Comment("--Evaluating condition--");
+        Visit(context.expr());
+        
+        // Make sure we have a boolean value
+        var exprType = GC.TopObject().Type;
+        if (exprType != StackObject.StackObjectType.Bool)
+        {
+            // If it's not a bool, we need to convert it
+            // For example, non-zero integers are true
+            GC.Comment("--Convert to boolean--");
+            GC.PopConstant(Register.X0);
+            GC.Cmp(Register.X0, 0);
+            var trueLabel = GC.GetLable();
+            var endLabel = GC.GetLable();
+            GC.Bne(trueLabel);
+            GC.Mov(Register.X0, 0);  // false
+            GC.Push(Register.X0);
+            GC.B(endLabel);
+            GC.SetLable(trueLabel);
+            GC.Mov(Register.X0, 1);  // true
+            GC.Push(Register.X0);
+            GC.SetLable(endLabel);
+            GC.PushObject(GC.BoolObject());
+        }
         return null;
     }
     public override Object? VisitInteger(LanguageParser.IntegerContext context)
@@ -426,6 +525,38 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitBoolean(LanguageParser.BooleanContext context)
     {
+        var value = context.BOOL().GetText();
+        GC.Comment($"--Constant {value}--");
+        var boolObject = GC.BoolObject();
+        GC.PushConstant(boolObject, value == "true" ? true : false);
+        
         return null;
     }
 }
+
+/*
+ if(isLeftDouble || isRightDouble){
+            if(!isRightDouble) GC.Scvtf(Register.D0, Register.X0);// Convertir right a double
+            if(!isLeftDouble) GC.Scvtf(Register.D1, Register.X1);// Convertir left a double
+
+            if(operation == "<")
+            {
+                GC.Fcmp(Register.D0, Register.D1);
+                GC.Fcsetlt(Register.X0);
+            }
+            else if(operation == "<=")
+            {
+                GC.Fcmp(Register.D0, Register.D1);
+                GC.Fcsetle(Register.X0);
+            }
+            else if(operation == ">")
+            {
+                GC.Fcmp(Register.D0, Register.D1);
+                GC.Fcsetgt(Register.X0);
+            }
+            else if(operation == ">=")
+            {
+                GC.Fcmp(Register.D0, Register.D1);
+                GC.Fcsetge(Register.X0);
+            }
+*/
