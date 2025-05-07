@@ -79,6 +79,52 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitVarImpNoExpr(LanguageParser.VarImpNoExprContext context)
     {
+        var varName = context.ID().GetText();
+        var typeName = context.TYPE().GetText();
+        var declaredType = GetType(typeName);
+        
+        GC.Comment($"--Variable Declaration (default value): {varName} {typeName}--");
+        
+        // Inicializar la variable con un valor por defecto según su tipo
+        switch (declaredType)
+        {
+            case StackObject.StackObjectType.Int:
+            case StackObject.StackObjectType.Rune:
+                GC.Mov(Register.X0, 0);
+                GC.Push(Register.X0);
+                GC.PushObject(GC.IntObject());
+                break;
+                
+            case StackObject.StackObjectType.Bool:
+                GC.Mov(Register.X0, 0); // false
+                GC.Push(Register.X0);
+                GC.PushObject(GC.BoolObject());
+                break;
+                
+            case StackObject.StackObjectType.Float:
+                GC.Mov(Register.X0, 0);
+                GC.Scvtf(Register.D0, Register.X0);
+                GC.Push(Register.D0);
+                GC.PushObject(GC.FloatObject());
+                break;
+                
+            case StackObject.StackObjectType.String:
+                // Crear una cadena vacía
+                GC.Push(Register.HP);
+                GC.Mov("w0", 0); // Null terminator
+                GC.Strb("w0", Register.HP);
+                GC.Mov(Register.X0, 1);
+                GC.Add(Register.HP, Register.HP, Register.X0);
+                GC.PushObject(GC.StringObject());
+                break;
+                
+            default:
+                throw new Exception($"Unsupported type for default initialization: {declaredType}");
+        }
+        
+        // Etiquetamos el objeto con el nombre de la variable
+        GC.TagObject(varName);
+        
         return null;
     }
     public override Object? VisitAssignment(LanguageParser.AssignmentContext context)

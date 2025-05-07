@@ -4,20 +4,37 @@ heap: .space 4096
 .global _start
 _start:
     adr x10, heap
-    // --Variable Declaration: entero int--
+    // --Variable Declaration (default value): entero int--
+    MOV x0, #0
+    STR x0, [SP, #-8]!
+    // --Variable Declaration (default value): decimal float64--
+    MOV x0, #0
+    SCVTF d0, x0
+    STR d0, [SP, #-8]!
+    // --Variable Declaration (default value): texto string--
+    STR x10, [SP, #-8]!
+    MOV w0, #0
+    STRB w0, [x10]
+    MOV x0, #1
+    ADD x10, x10, x0
+    // --Variable Declaration (default value): booleano bool--
+    MOV x0, #0
+    STR x0, [SP, #-8]!
+    // --Variable Declaration (default value): caracter rune--
+    MOV x0, #0
+    STR x0, [SP, #-8]!
+    // --Variable Declaration--
     // --Integer value--
-    MOV x0, #42
+    MOV x0, #2
     STR x0, [SP, #-8]!
-    // --Store value in memory--
-    // --Variable Declaration: decimal float64--
-    MOVZ X0, #0x851F, LSL #0
-    MOVK X0, #0x51EB, LSL #16
-    MOVK X0, #0x1EB8, LSL #32
-    MOVK X0, #0x4009, LSL #48
+    // --Variable Declaration--
+    MOVZ X0, #0x999A, LSL #0
+    MOVK X0, #0x9999, LSL #16
+    MOVK X0, #0x9999, LSL #32
+    MOVK X0, #0x4001, LSL #48
     STR x0, [SP, #-8]!
-    // --Store value in memory--
-    // --Variable Declaration: texto string--
-    // --String value: Hola!--
+    // --Variable Declaration--
+    // --String value: Hola--
     STR x10, [SP, #-8]!
     // StringArray[0] = 72
     MOV w0, #72
@@ -39,27 +56,19 @@ _start:
     STRB w0, [x10]
     MOV x0, #1
     ADD x10, x10, x0
-    // StringArray[4] = 33
-    MOV w0, #33
-    STRB w0, [x10]
-    MOV x0, #1
-    ADD x10, x10, x0
-    // StringArray[5] = 0
+    // StringArray[4] = 0
     MOV w0, #0
     STRB w0, [x10]
     MOV x0, #1
     ADD x10, x10, x0
-    // --Store value in memory--
-    // --Variable Declaration: booleano bool--
+    // --Variable Declaration--
     // --Constant true--
     MOV x0, #1
     STR x0, [SP, #-8]!
-    // --Store value in memory--
-    // --Variable Declaration: caracter rune--
+    // --Variable Declaration--
     // --Rune value: 'A' (65)--
     MOV x0, #65
     STR x0, [SP, #-8]!
-    // --Store value in memory--
     // --Print statement--
     // --String value: \n\n###Validacion Manual--
     STR x10, [SP, #-8]!
