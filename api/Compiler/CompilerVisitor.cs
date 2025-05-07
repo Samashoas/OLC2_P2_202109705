@@ -56,8 +56,25 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
 
         return null;
     }
+    //var ID TIPO = EXPR (var a int = 5)
     public override Object? VisitVarImpExpr(LanguageParser.VarImpExprContext context)
     {
+        var varName = context.ID().GetText();
+        var typeName = context.TYPE().GetText();
+        
+        GC.Comment($"--Variable Declaration: {varName} {typeName}--");
+        
+        // Evaluar la expresión y obtener su valor
+        Visit(context.expr());
+        
+        // En este punto, la expresión ha puesto un valor en la pila
+        // y PopObject lo saca de la pila y lo pone en el registro especificado
+        GC.Comment("--Store value in memory--");
+        
+        // Simplemente etiquetamos el objeto en el stack con el nombre de la variable
+        // para que podamos referirnos a él más tarde
+        GC.TagObject(varName);
+        
         return null;
     }
     public override Object? VisitVarImpNoExpr(LanguageParser.VarImpNoExprContext context)
@@ -1016,7 +1033,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
                 return StackObject.StackObjectType.Int;
             case "rune":
                 return StackObject.StackObjectType.Rune;
-            case "float":
+            case "float64":
                 return StackObject.StackObjectType.Float;
             case "string":
                 return StackObject.StackObjectType.String;
