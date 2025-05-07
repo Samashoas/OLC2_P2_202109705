@@ -125,6 +125,26 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
 
             if(value.Type == StackObject.StackObjectType.Int){
                 GC.PrintInt(Register.X0);
+            }else if(value.Type == StackObject.StackObjectType.Bool){
+                var trueLabel = GC.GetLable();
+                var endLabel = GC.GetLable();
+                
+                GC.Cmp(Register.X0, 1);
+                GC.Beq(trueLabel);
+                
+                // Imprimir "false"
+                GC.Adr(Register.X0, "false_str");
+                GC.PrintString(Register.X0);
+                GC.B(endLabel);
+                
+                // Imprimir "true" 
+                GC.SetLable(trueLabel);
+                GC.Adr(Register.X0, "true_str");
+                GC.PrintString(Register.X0);
+                
+                GC.SetLable(endLabel);
+            }else if(value.Type == StackObject.StackObjectType.Rune){
+                GC.PrintRune(Register.X0);
             }else if(value.Type == StackObject.StackObjectType.Float){
                 GC.PrintFloat();
             }else if(value.Type == StackObject.StackObjectType.String){
@@ -872,6 +892,31 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitRune(LanguageParser.RuneContext context)
     {
+        string runeText = context.RUNE().GetText();
+    
+        // Quitar las comillas simples
+        string runeContent = runeText.Substring(1, runeText.Length - 2);
+        
+        // Manejar secuencias de escape
+        char runeChar;
+        if (runeContent.StartsWith("\\")) {
+            switch (runeContent) {
+                case "\\n": runeChar = '\n'; break;
+                case "\\r": runeChar = '\r'; break;
+                case "\\t": runeChar = '\t'; break;
+                case "\\\"": runeChar = '\"'; break;
+                case "\\'": runeChar = '\''; break;
+                case "\\\\": runeChar = '\\'; break;
+                default: runeChar = runeContent[1]; break;
+            }
+        } else {
+            runeChar = runeContent[0];
+        }
+        
+        GC.Comment($"--Rune value: '{runeChar}' ({(int)runeChar})--");
+        var runeObject = GC.RuneObject();
+        GC.PushConstant(runeObject, runeChar);
+        
         return null;
     }
     public override Object? VisitString(LanguageParser.StringContext context)
@@ -898,6 +943,8 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         {
             case "int":
                 return StackObject.StackObjectType.Int;
+            case "rune":
+                return StackObject.StackObjectType.Rune;
             case "float":
                 return StackObject.StackObjectType.Float;
             case "string":

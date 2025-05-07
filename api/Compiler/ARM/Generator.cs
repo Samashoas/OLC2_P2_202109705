@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 
 public class StackObject{
-    public enum StackObjectType {Int, Float, String, Bool, Undefined}
+    public enum StackObjectType {Int, Float, String, Bool, Rune, Undefined}
     public StackObjectType Type {get; set;}
     public int length {get; set;}
     public int Depth {get; set;}
@@ -49,6 +49,10 @@ public class Generator
                 break;
             case StackObject.StackObjectType.Bool:
                 Mov(Register.X0, (bool)value ? 1 : 0);
+                Push(Register.X0);
+                break;
+            case StackObject.StackObjectType.Rune:
+                Mov(Register.X0, (int)(char)value);
                 Push(Register.X0);
                 break;
             case StackObject.StackObjectType.Float:
@@ -119,6 +123,15 @@ public class Generator
     public StackObject StringObject(){
         return new StackObject{
             Type = StackObject.StackObjectType.String,
+            length = 8,
+            Depth = stackDepth,
+            Id = null
+        };
+    }
+
+    public StackObject RuneObject(){
+        return new StackObject{
+            Type = StackObject.StackObjectType.Rune,
             length = 8,
             Depth = stackDepth,
             Id = null
@@ -337,6 +350,13 @@ public class Generator
         instructions.Add($"MOV x0, {rd}");
         instructions.Add("BL print_integer");
         standardLibrary.Use("print_integer");
+    }
+
+    public void PrintRune(string rd)
+    {
+        instructions.Add($"MOV x0, {rd}");
+        instructions.Add("BL print_char");
+        standardLibrary.Use("print_char"); 
     }
 
     public void PrintFloat()

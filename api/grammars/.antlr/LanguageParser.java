@@ -1,4 +1,4 @@
-// Generated from /home/juan-pablo/Escritorio/Uni/OLC2/C#/OLC2_P1_202109705/api/grammars/Language.g4 by ANTLR 4.13.1
+// Generated from /home/juan-pablo/Escritorio/Uni/OLC2/C#/OLC2_P2_202109705/api/grammars/Language.g4 by ANTLR 4.13.1
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.*;

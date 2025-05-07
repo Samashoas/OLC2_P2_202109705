@@ -340,6 +340,33 @@ print_newline:
     ldp x29, x30, [sp], #16
     ret
     "},
+    { "print_char", @"
+//--------------------------------------------------------------
+// print_char - Prints a single character to stdout
+//
+// Input:
+//   x0 - The character value to print (as an integer)
+//--------------------------------------------------------------
+print_char:
+    // Save registers
+    stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
+    
+    // Reserve space for the character on the stack and store it
+    sub sp, sp, #16
+    strb w0, [sp]              // Store the character on stack
+    
+    // Print the character
+    mov x0, #1                 // fd = 1 (stdout)
+    mov x1, sp                 // Address of character on stack
+    mov x2, #1                 // Length = 1 byte
+    mov w8, #64                // write syscall
+    svc #0
+    
+    // Clean up and return
+    add sp, sp, #16            // Restore stack
+    ldp x29, x30, [sp], #16    // Restore frame pointer and link register
+    ret
+"}
     };
 
     private readonly static Dictionary<string, string> Symbols = new Dictionary<string, string>
