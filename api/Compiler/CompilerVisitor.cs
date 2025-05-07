@@ -125,26 +125,10 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
 
             if(value.Type == StackObject.StackObjectType.Int){
                 GC.PrintInt(Register.X0);
-            }else if(value.Type == StackObject.StackObjectType.Bool){
-                var trueLabel = GC.GetLable();
-                var endLabel = GC.GetLable();
-                
-                GC.Cmp(Register.X0, 1);
-                GC.Beq(trueLabel);
-                
-                // Imprimir "false"
-                GC.Adr(Register.X0, "false_str");
-                GC.PrintString(Register.X0);
-                GC.B(endLabel);
-                
-                // Imprimir "true" 
-                GC.SetLable(trueLabel);
-                GC.Adr(Register.X0, "true_str");
-                GC.PrintString(Register.X0);
-                
-                GC.SetLable(endLabel);
             }else if(value.Type == StackObject.StackObjectType.Rune){
                 GC.PrintRune(Register.X0);
+            }else if(value.Type == StackObject.StackObjectType.Bool){
+                GC.PrintBool(Register.X0);
             }else if(value.Type == StackObject.StackObjectType.Float){
                 GC.PrintFloat();
             }else if(value.Type == StackObject.StackObjectType.String){

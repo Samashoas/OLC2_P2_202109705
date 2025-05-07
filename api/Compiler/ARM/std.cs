@@ -18,6 +18,11 @@ public class StandardLibrary
             UsedSymbols.Add("dot_char");
             UsedSymbols.Add("zero_char");
         }
+        else if (function == "print_boolean")
+        {
+            UsedSymbols.Add("true_str");
+            UsedSymbols.Add("false_str");
+        }
         else if (function == "print_space")
         {
             UsedSymbols.Add("space_char");
@@ -366,7 +371,42 @@ print_char:
     add sp, sp, #16            // Restore stack
     ldp x29, x30, [sp], #16    // Restore frame pointer and link register
     ret
-"}
+"},
+       { "print_boolean", @"
+//--------------------------------------------------------------
+// print_boolean - Prints a boolean value (true/false) to stdout
+//
+// Input:
+//   x0 - The boolean value to print (0 = false, non-zero = true)
+//--------------------------------------------------------------
+print_boolean:
+    // Save registers
+    stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
+    
+    // Check if the value is true or false
+    cmp x0, #0
+    beq print_false
+    
+    // Print 'true'
+    mov x0, #1                 // fd = 1 (stdout)
+    adr x1, true_str           // Address of 'true' string
+    mov x2, #4                 // Length = 4 bytes
+    mov w8, #64                // Syscall write
+    svc #0
+    b print_bool_end
+    
+print_false:
+    // Print 'false'
+    mov x0, #1                 // fd = 1 (stdout)
+    adr x1, false_str          // Address of 'false' string
+    mov x2, #5                 // Length = 5 bytes
+    mov w8, #64                // Syscall write
+    svc #0
+    
+print_bool_end:
+    // Restore registers and return
+    ldp x29, x30, [sp], #16    // Restore frame pointer and link register
+    ret" }
     };
 
     private readonly static Dictionary<string, string> Symbols = new Dictionary<string, string>
@@ -375,6 +415,8 @@ print_char:
         { "dot_char", @"dot_char: .ascii "".""" },
         { "zero_char", @"zero_char: .ascii ""0""" },
         { "space_char", @"space_char: .ascii "" """ },
-        { "newline_char", @"newline_char: .ascii ""\n""" }
+        { "newline_char", @"newline_char: .ascii ""\n""" },
+        { "true_str", @"true_str: .ascii ""true""" },
+        { "false_str", @"false_str: .ascii ""false""" }
     };
 }

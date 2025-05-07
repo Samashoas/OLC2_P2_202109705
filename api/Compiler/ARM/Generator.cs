@@ -359,6 +359,13 @@ public class Generator
         standardLibrary.Use("print_char"); 
     }
 
+    public void PrintBool(string rd)
+    {
+        instructions.Add($"MOV x0, {rd}");
+        instructions.Add("BL print_boolean");
+        standardLibrary.Use("print_boolean");
+    }
+
     public void PrintFloat()
     {
         standardLibrary.Use("print_integer");
@@ -396,15 +403,13 @@ public class Generator
         sb.AppendLine("    adr x10, heap");
 
         EndProgram();
-
         // Luego el código principal
         foreach (var instruction in instructions)
         {
             sb.AppendLine($"    {instruction}");
         }
-
-       
         
+
         sb.AppendLine("\n\n\n// Standard library functions");
         sb.AppendLine(standardLibrary.GetFunctionDefinitions());
 

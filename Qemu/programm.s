@@ -5,23 +5,14 @@ heap: .space 4096
 _start:
     adr x10, heap
     // --Print statement--
-    // --Rune value: 'b' (98)--
-    MOV x0, #98
-    STR x0, [SP, #-8]!
-    // --Rune value: 'a' (97)--
-    MOV x0, #97
+    // --Constant true--
+    MOV x0, #1
     STR x0, [SP, #-8]!
     // --Print values--
     // --POP value 2 print--
     LDR x0, [SP], #8
     MOV x0, x0
-    BL print_char
-    //print space
-    BL print_space
-    // --POP value 2 print--
-    LDR x0, [SP], #8
-    MOV x0, x0
-    BL print_char
+    BL print_boolean
     //print newline
     BL print_newline
     MOV x0, #0
@@ -33,50 +24,39 @@ _start:
 // Standard library functions
 
 //--------------------------------------------------------------
-// print_char - Prints a single character to stdout
+// print_boolean - Prints a boolean value (true/false) to stdout
 //
 // Input:
-//   x0 - The character value to print (as an integer)
+//   x0 - The boolean value to print (0 = false, non-zero = true)
 //--------------------------------------------------------------
-print_char:
+print_boolean:
     // Save registers
     stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
     
-    // Reserve space for the character on the stack and store it
-    sub sp, sp, #16
-    strb w0, [sp]              // Store the character on stack
+    // Check if the value is true or false
+    cmp x0, #0
+    beq print_false
     
-    // Print the character
+    // Print 'true'
     mov x0, #1                 // fd = 1 (stdout)
-    mov x1, sp                 // Address of character on stack
-    mov x2, #1                 // Length = 1 byte
-    mov w8, #64                // write syscall
+    adr x1, true_str           // Address of 'true' string
+    mov x2, #4                 // Length = 4 bytes
+    mov w8, #64                // Syscall write
+    svc #0
+    b print_bool_end
+    
+print_false:
+    // Print 'false'
+    mov x0, #1                 // fd = 1 (stdout)
+    adr x1, false_str          // Address of 'false' string
+    mov x2, #5                 // Length = 5 bytes
+    mov w8, #64                // Syscall write
     svc #0
     
-    // Clean up and return
-    add sp, sp, #16            // Restore stack
+print_bool_end:
+    // Restore registers and return
     ldp x29, x30, [sp], #16    // Restore frame pointer and link register
     ret
-
-
-//--------------------------------------------------------------
-// print_space - Prints a space character to stdout
-//--------------------------------------------------------------
-print_space:
-    // Save link register
-    stp x29, x30, [sp, #-16]!
-    
-    // Print space character
-    mov x0, #1           // fd = 1 (stdout)
-    adr x1, space_char   // address of space
-    mov x2, #1           // length is 1 byte
-    mov w8, #64          // write syscall
-    svc #0
-    
-    // Restore registers and return
-    ldp x29, x30, [sp], #16
-    ret
-    
 
 //--------------------------------------------------------------
 // print_newline - Prints a newline character
@@ -96,5 +76,6 @@ print_newline:
     ldp x29, x30, [sp], #16
     ret
     
-space_char: .ascii " "
+true_str: .ascii "true"
+false_str: .ascii "false"
 newline_char: .ascii "\n"
