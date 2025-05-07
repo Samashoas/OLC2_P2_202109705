@@ -713,6 +713,93 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitMDmod(LanguageParser.MDmodContext context)
     {
+        GC.Comment("--Multiply/Divide/Modulo--");
+        Visit(context.expr(0));
+        Visit(context.expr(1));
+
+        GC.Comment("--Pop Values R--");
+        var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var right = GC.PopObject(isRightDouble? Register.D0 : Register.X0);
+        
+        GC.Comment("--Pop Values L--");
+        var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var left = GC.PopObject(isLeftDouble? Register.D1 : Register.X1);
+
+        var op = context.op.Text;
+
+        if(isLeftDouble || isRightDouble){
+            if(!isRightDouble) GC.Scvtf(Register.D0, Register.X0);// Convertir right a double
+            if(!isLeftDouble) GC.Scvtf(Register.D1, Register.X1);// Convertir left a double
+
+            if(op == "*")
+            {
+                GC.Fmul(Register.D0, Register.D1, Register.D0);
+            }
+            else if(op == "/")
+            {
+                GC.Fdiv(Register.D0, Register.D1, Register.D0);
+            }
+            else
+            {
+                throw new Exception("Unknown operator: " + op);
+            }
+            GC.Comment("--Push Result--");
+            GC.Push(Register.D0);
+            GC.PushObject(GC.FloatObject());  // El resultado será siempre float si alguno de los operandos es float
+        }
+        else{
+            if(op == "*")
+            {
+                GC.Mul(Register.X0, Register.X1, Register.X0);
+            }
+            else if(op == "/")
+            {
+                // Verificar división por cero
+                GC.Cmp(Register.X0, 0);
+                var errorLabel = GC.GetLable();
+                var continueLabel = GC.GetLable();
+                GC.Beq(errorLabel);
+                
+                GC.Div(Register.X0, Register.X1, Register.X0);
+                GC.B(continueLabel);
+                
+                GC.SetLable(errorLabel);
+                GC.Comment("--Division by zero error--");
+                // Aquí podrías implementar un manejo de error, como imprimir un mensaje
+                // Por ahora, establecemos un valor predeterminado (0) para evitar crash
+                GC.Mov(Register.X0, 0);
+                
+                GC.SetLable(continueLabel);
+            }
+            else if(op == "%")
+            {
+                // Verificar módulo por cero
+                GC.Cmp(Register.X0, 0);
+                var errorLabel = GC.GetLable();
+                var continueLabel = GC.GetLable();
+                GC.Beq(errorLabel);
+                
+                // Para enteros, usamos la instrucción MSUB (multiply-subtract)
+                GC.Div(Register.X2, Register.X1, Register.X0);  // X2 = X1 / X0
+                GC.Mul(Register.X2, Register.X2, Register.X0);  // X2 = X2 * X0
+                GC.Sub(Register.X0, Register.X1, Register.X2);  // X0 = X1 - X2
+                GC.B(continueLabel);
+                
+                GC.SetLable(errorLabel);
+                GC.Comment("--Modulo by zero error--");
+                // Como con la división, establecemos un valor predeterminado
+                GC.Mov(Register.X0, 0);
+                
+                GC.SetLable(continueLabel);
+            }
+            else
+            {
+                throw new Exception("Unknown operator: " + op);
+            }
+            GC.Comment("--Push Result--");
+            GC.Push(Register.X0);
+            GC.PushObject(GC.CloneObject(left));
+        }
         return null;
     }
     public override Object? VisitRelational (LanguageParser.RelationalContext context)
