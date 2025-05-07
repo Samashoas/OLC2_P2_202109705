@@ -66,13 +66,9 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         
         // Evaluar la expresión y obtener su valor
         Visit(context.expr());
-        
-        // En este punto, la expresión ha puesto un valor en la pila
-        // y PopObject lo saca de la pila y lo pone en el registro especificado
+
         GC.Comment("--Store value in memory--");
         
-        // Simplemente etiquetamos el objeto en el stack con el nombre de la variable
-        // para que podamos referirnos a él más tarde
         GC.TagObject(varName);
         
         return null;
@@ -719,13 +715,19 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
 
         GC.Comment("--Pop Values R--");
         var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var isRightString = GC.TopObject().Type == StackObject.StackObjectType.String;
         var right = GC.PopObject(isRightDouble? Register.D0 : Register.X0);
         
         GC.Comment("--Pop Values L--");
         var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var isLeftString = GC.TopObject().Type == StackObject.StackObjectType.String;
         var left = GC.PopObject(isLeftDouble? Register.D1 : Register.X1);
 
         var op = context.op.Text;
+
+        if(op == "+" && (isLeftString && isRightString)){
+            return HandleStringConcat();
+        }
 
         if(isLeftDouble || isRightDouble){
             if(!isRightDouble) GC.Scvtf(Register.D0, Register.X0);// Convertir right a double
@@ -764,6 +766,30 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
             GC.PushObject(GC.CloneObject(left));
             GC.PushObject(GC.CloneObject(right));
         }
+        return null;
+    }
+
+    private Object? HandleStringConcat(){
+        GC.Comment("--String Concatenation--");
+        // X0 ya contiene el segundo string
+        // X1 ya contiene el primer string
+        // La función concat_string espera:
+        // X0 = primer string
+        // X1 = segundo string
+        GC.Push(Register.X0);  // Guardar segundo string en stack
+        GC.Push(Register.X1);  // Guardar primer string en stack
+        
+        // Recuperar en el orden correcto
+        GC.Pop(Register.X0);   // Primer string ahora en X0
+        GC.Pop(Register.X1);   // Segundo string ahora en X1
+        
+        // Llamar a la función de concatenación
+        GC.ConcatString();
+        
+        // El resultado está en X0
+        GC.Push(Register.X0);              // Guardar resultado en la pila
+        GC.PushObject(GC.StringObject()); // Indicar que es un string
+        
         return null;
     }
     public override Object? VisitImplicitAddSub(LanguageParser.ImplicitAddSubContext context)

@@ -406,7 +406,58 @@ print_false:
 print_bool_end:
     // Restore registers and return
     ldp x29, x30, [sp], #16    // Restore frame pointer and link register
-    ret" }
+    ret" },
+{ "concat_string", @"
+//--------------------------------------------------------------
+// concat_string - Concatenates two strings and returns a new string
+//
+// Input:
+//   x0 - Address of the first string
+//   x1 - Address of the second string
+// Output:
+//   x0 - Address of the concatenated string (in heap)
+//--------------------------------------------------------------
+concat_string:
+    // Save registers
+    stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
+    stp x19, x20, [sp, #-16]!  // Save callee-saved registers
+    stp x21, x22, [sp, #-16]!  // Save more callee-saved registers
+    
+    // Save string addresses
+    mov x19, x0                // First string
+    mov x20, x1                // Second string
+    mov x21, x10               // Current heap pointer
+    
+    // Copy first string to heap
+    mov x22, #0                // Initialize counter
+copy_first:
+    ldrb w0, [x19, x22]        // Load byte from first string
+    cbz w0, copy_second_init   // If null terminator, start copying second string
+    strb w0, [x10]             // Store byte in heap
+    add x10, x10, #1           // Increment heap pointer
+    add x22, x22, #1           // Increment counter
+    b copy_first               // Continue copying
+    
+copy_second_init:
+    mov x22, #0                // Reset counter for second string
+copy_second:
+    ldrb w0, [x20, x22]        // Load byte from second string
+    strb w0, [x10]             // Store byte in heap (including null terminator)
+    cbz w0, concat_done        // If null terminator, we're done
+    add x10, x10, #1           // Increment heap pointer
+    add x22, x22, #1           // Increment counter
+    b copy_second              // Continue copying
+    
+concat_done:
+    add x10, x10, #1           // Move heap pointer past null terminator
+    mov x0, x21                // Return pointer to the new string
+    
+    // Restore registers
+    ldp x21, x22, [sp], #16    // Restore callee-saved registers
+    ldp x19, x20, [sp], #16    // Restore callee-saved registers
+    ldp x29, x30, [sp], #16    // Restore frame pointer and link register
+    ret
+"}
     };
 
     private readonly static Dictionary<string, string> Symbols = new Dictionary<string, string>

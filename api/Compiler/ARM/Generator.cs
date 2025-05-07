@@ -380,6 +380,11 @@ public class Generator
         standardLibrary.Use("print_string");
     }
 
+    public void ConcatString(){
+        instructions.Add("BL concat_string");
+        standardLibrary.Use("concat_string");
+    }
+
     public void EndProgram()
     {
         Mov(Register.X0, 0);
