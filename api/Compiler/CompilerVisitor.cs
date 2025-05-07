@@ -4,12 +4,24 @@ using System.Globalization;
 using Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption.ConfigurationModel;
 using System.Buffers;
 using api.Controllers;
+using System.Numerics;
+using System.Reflection.Emit;
 
+public class FunctionMetadata{
+    public int FrameSize;
+    public StackObject.StackObjectType ReturnType;
+}
 public class CompilerVisitor : LanguageBaseVisitor<Object?>
 {
     public Generator GC = new Generator();
     private string continueLabel = "";
     private string breakLabel = "";
+    private string returnLabel = "";
+
+    //PARA FUNCIONES
+    private Dictionary<string, FunctionMetadata> function = new Dictionary<string, FunctionMetadata>();
+    private string? insideFunction = null;
+    private int framePointerOffset = 0;
     public CompilerVisitor(){}
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>INICIO POGRAMA<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -26,6 +38,20 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
 
         GC.Comment("--Variable Declaration--");
         Visit(context.expr());
+
+        if(insideFunction != null){
+            var localObject = GC.GetFrameLocal(framePointerOffset);
+            var valueObject = GC.PopObject(Register.X0); // Pop the value to assign
+
+            GC.Mov(Register.X1, framePointerOffset * 8); // Move the offset to X1
+            GC.Sub(Register.X1, Register.FP, Register.X1); // Add the offset to FP to get the address
+            GC.Str(Register.X0, Register.X1); // Store the value at the address
+
+            localObject.Type = valueObject.Type;
+            framePointerOffset++;
+
+            return null;
+        }
         GC.TagObject(VarName);
 
         return null;
@@ -48,7 +74,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
             Visit(context.expr(1));
             
             // Pop del valor calculado
-            var valueObject = GC.PopConstant(Register.X0);
+            var valueObject = GC.PopObject(Register.X0);
             
             // Buscar la variable en el stack y obtener su offset
             var (offset, varObject) = GC.GetObject(varName);
@@ -76,7 +102,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     {
         Visit(context.expr());
         GC.Comment("--Pop para limpiar--");
-        GC.PopConstant(Register.X0);
+        GC.PopObject(Register.X0);
         return null;
     }
     public override Object? VisitPrintStmt(LanguageParser.PrintStmtContext context)
@@ -95,7 +121,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         for(int i = 0; i < argPrint; i++){
             GC.Comment("--POP value 2 print--");
             var isDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
-            var value = GC.PopConstant(isDouble? Register.D0 : Register.X0);
+            var value = GC.PopObject(isDouble? Register.D0 : Register.X0);
 
             if(value.Type == StackObject.StackObjectType.Int){
                 GC.PrintInt(Register.X0);
@@ -167,7 +193,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     {
         GC.Comment("--If statement--");
         Visit(context.condition());
-        GC.PopConstant(Register.X0);
+        GC.PopObject(Register.X0);
 
         var HasElse = context.stmt().Length > 1;
 
@@ -238,7 +264,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         {
             GC.Comment("--For condition--");
             Visit(context.expr(0));
-            GC.PopConstant(Register.X0);
+            GC.PopObject(Register.X0);
             GC.cbz(Register.X0, endLabel);
         }
 
@@ -254,7 +280,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         if (context.expr() != null && context.expr().Length > 1)
         {
             Visit(context.expr(1));
-            //GC.PopConstant(Register.X0); // Clean up stack after expression
+            //GC.PopObject(Register.X0); // Clean up stack after expression
         }
         
         GC.B(startLabel); // Jump back to start
@@ -290,7 +316,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         GC.SetLable(startLabel);
         GC.Comment("--For WHILE condition--");
         Visit(context.condition());
-        GC.PopConstant(Register.X0);
+        GC.PopObject(Register.X0);
         GC.cbz(Register.X0, endLabel);
         GC.Comment("--For WHILE body--");
         Visit(context.stmt());
@@ -320,14 +346,204 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitReturnStmt(LanguageParser.ReturnStmtContext context)
     {
+        GC.Comment("--Return statement--");
+        if(context.expr() == null){
+            GC.Br(returnLabel);
+            return null;
+        }
+
+        if(insideFunction == null) throw new Exception("Return statement outside of function");
+
+        Visit(context.expr());
+        GC.PopObject(Register.X0);
+
+        var frameSize = function[insideFunction].FrameSize;
+        var returnOffset = frameSize - 1;
+
+        GC.Mov(Register.X1, returnOffset*8);
+        GC.Sub(Register.X1, Register.FP, Register.X1);
+        GC.Str(Register.X0, Register.X1); // Store the return value in the frame
+        GC.B(returnLabel); // Jump to the return label 
+
+        GC.Comment($"--End return statement--");
         return null;
     }
     public override Object? VisitCaller(LanguageParser.CallerContext context)
     {
+        if(context.expr() is not LanguageParser.IdentifierContext idContext) return null;
+        if(context.call() is not LanguageParser.CallContext[] funcCallContext) return null;
+
+        string funcName = idContext.ID().GetText();
+        var callContext = funcCallContext[0];
+
+        var postFuncCallLabel = GC.GetLable();
+
+        int baseOffset = 2;
+        int stackElements = 8;
+        GC.Mov(Register.X0, baseOffset*stackElements);
+        GC.Sub(Register.SP, Register.SP, Register.X0);
+
+        if(callContext.args() != null){
+            GC.Comment("--Function parameters--");
+            foreach(var param in callContext.args().expr()){
+                Visit(param);
+            }
+        }
+
+        //Calcular el valor del FP
+         GC.Mov(Register.X0, baseOffset*stackElements);
+        //GC.Mov(Register.X0, stackElements*(baseOffset + callContext.args().expr().Length));
+        //Regresar al SP al incio del frame
+        GC.Add(Register.SP, Register.SP, Register.X0);
+
+        //Calcular las posicion del SP
+        GC.Mov(Register.X0, stackElements);
+        //Se almacena el SP en X0
+        GC.Sub(Register.X0, Register.SP, Register.X0);
+
+        GC.Adr(Register.X1, postFuncCallLabel); //Direccion de la funcion
+        GC.Push(Register.X1);// Push de la direccion al stack
+
+        GC.Push(Register.FP); // Guardar el FP actual
+        GC.Add(Register.FP, Register.X0, Register.XZR); // Actualizar el FP al nuevo frame
+
+        int FrameSize = function[funcName].FrameSize;
+        GC.Mov(Register.X0, (FrameSize-2)*stackElements);
+        GC.Sub(Register.SP, Register.SP, Register.X0); // Reservar espacio para el nuevo frame
+
+        GC.Comment("--llamando a la funcion--");
+        GC.Bl(funcName); // Llamar a la función
+        GC.Comment("--llamada realizada--");
+        GC.SetLable(postFuncCallLabel);
+        
+        //Obetener el valor del retorno
+        var returnOffset = FrameSize -1;
+        GC.Mov(Register.X4, returnOffset*stackElements);
+        GC.Sub(Register.X4, Register.FP, Register.X4);
+        GC.Ldr(Register.X4, Register.X4);
+
+        //Regresar el FP al contexto de ejecucion previo
+        GC.Mov(Register.X1, stackElements);
+        GC.Sub(Register.X1, Register.FP, Register.X1);
+        GC.Ldr(Register.FP, Register.X1);
+
+        GC.Mov(Register.X0, stackElements * FrameSize);
+        GC.Add(Register.SP, Register.SP, Register.X0); // Agrega el frameSize al stack
+
+        GC.Push(Register.X4); // Push del valor del retorno al stack
+        GC.PushObject(new StackObject{
+            Type = function[funcName].ReturnType,
+            Id = null,
+            Offset = 0,
+            length = 8,
+        });
+
+        GC.Comment($"--End function call {funcName}--");
+
         return null;
     }
     public override Object? VisitFuncDcl([NotNull] LanguageParser.FuncDclContext context)
     {
+        int baseOffset = 2;
+        int parameterOffset = 0;
+        
+        if(context.funcParams() != null){
+            parameterOffset = context.funcParams().paramDcl().Length;
+        }
+
+        FrameVisitor frameVisitor = new FrameVisitor(baseOffset + parameterOffset);
+
+        foreach(var dcl in context.dcl()){
+            frameVisitor.Visit(dcl);
+        }
+
+        var frame = frameVisitor.Frame;
+        int LocalOffset = frameVisitor.LocalOffset;
+        int returnOffset = frameVisitor.BaseOffset;
+
+        int totalFrameSize = baseOffset + parameterOffset + LocalOffset + returnOffset;
+
+        string funcName = context.ID().GetText();
+        StackObject.StackObjectType funcType = context.TYPE() != null 
+        ? GetType(context.TYPE().GetText()) 
+        : StackObject.StackObjectType.Undefined;
+
+        function.Add(funcName, new FunctionMetadata{
+            FrameSize = totalFrameSize,
+            ReturnType = funcType
+        });
+
+        var prevInstructions = GC.instructions;
+        GC.instructions = new List<string>();
+
+        if (context.funcParams() != null) {
+            var paramCounter = 0;
+            foreach (var param in context.funcParams().paramDcl()) {
+                GC.PushObject(new StackObject
+                {
+                    Type = GetType(param.TYPE().GetText()),
+                    Id = param.ID().GetText(),
+                    Offset = paramCounter + baseOffset,
+                    length = 8,
+                });
+                paramCounter++;
+            }
+        }
+
+        foreach(FrameElement element in frame){
+            GC.PushObject(new StackObject
+            {
+                Type = StackObject.StackObjectType.Undefined,
+                Id = element.Name,
+                Offset = element.Offset,
+                length = 8,
+            });
+        }
+
+        insideFunction = funcName;
+        framePointerOffset = 0;
+
+        returnLabel = GC.GetLable();
+        
+        GC.Comment("Function declaration: " + funcName);
+        GC.SetLable(funcName);
+        GC.instructions.Add(".global " + funcName); 
+
+        foreach(var dcl in context.dcl()){
+            Visit(dcl);
+        }
+
+        // Aquí está la corrección para el retorno de la función
+        GC.SetLable(returnLabel);
+        GC.Comment("-- Return from function --");
+        
+        // Cargar la dirección de retorno almacenada en el frame
+        // El link register (LR) se guardó en el frame en [FP, #-8]
+        GC.Mov(Register.X0, 8);  // Offset de 8 bytes para lr
+        GC.Sub(Register.X0, Register.FP, Register.X0);
+        GC.Ldr(Register.LR, Register.X0);
+        
+        // Restaurar el frame pointer que se guardó en [FP, #-16]
+        GC.Mov(Register.X0, 16);  // Offset de 16 bytes para fp
+        GC.Sub(Register.X0, Register.FP, Register.X0);
+        GC.Ldr(Register.FP, Register.X0);
+
+        // Volver a la dirección de retorno
+        GC.Ret();  // Usar RET en lugar de BR LR - más claro y directo
+
+        GC.Comment($"--End function {funcName}--");
+
+        //Limpiar el stack
+        for(int i = 0; i<parameterOffset + LocalOffset; i++){
+            GC.PopObject();
+        }
+
+        foreach(var instruction in GC.instructions){
+            GC.funcInstructions.Add(instruction);
+        }
+
+        GC.instructions = prevInstructions;
+        insideFunction = null;
         return null;
     }
     public override Object? VisitSliceDcl(LanguageParser.SliceDclContext context)
@@ -436,11 +652,11 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
 
         GC.Comment("--Pop Values R--");
         var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
-        var right = GC.PopConstant(isRightDouble? Register.D0 : Register.X0);
+        var right = GC.PopObject(isRightDouble? Register.D0 : Register.X0);
         
         GC.Comment("--Pop Values L--");
         var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
-        var left = GC.PopConstant(isLeftDouble? Register.D1 : Register.X1);
+        var left = GC.PopObject(isLeftDouble? Register.D1 : Register.X1);
 
         var op = context.op.Text;
 
@@ -504,11 +720,11 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
 
         GC.Comment("--Pop Values R--");
         var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
-        var right = GC.PopConstant(isRightDouble? Register.D0 : Register.X0);
+        var right = GC.PopObject(isRightDouble? Register.D0 : Register.X0);
         
         GC.Comment("--Pop Values L--");
         var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
-        var left = GC.PopConstant(isLeftDouble? Register.D1 : Register.X1);
+        var left = GC.PopObject(isLeftDouble? Register.D1 : Register.X1);
 
         if(isLeftDouble || isRightDouble){
             return null;
@@ -558,11 +774,11 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
 
         GC.Comment("--Pop Values R--");
         var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
-        var right = GC.PopConstant(isRightDouble? Register.D0 : Register.X0);
+        var right = GC.PopObject(isRightDouble? Register.D0 : Register.X0);
 
         GC.Comment("--Pop Values L--");
         var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
-        var left = GC.PopConstant(isLeftDouble? Register.D1 : Register.X1);
+        var left = GC.PopObject(isLeftDouble? Register.D1 : Register.X1);
 
         if(isLeftDouble || isRightDouble){
             return null;
@@ -621,7 +837,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
             // If it's not a bool, we need to convert it
             // For example, non-zero integers are true
             GC.Comment("--Convert to boolean--");
-            GC.PopConstant(Register.X0);
+            GC.PopObject(Register.X0);
             GC.Cmp(Register.X0, 0);
             var trueLabel = GC.GetLable();
             var endLabel = GC.GetLable();
@@ -675,7 +891,26 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         
         return null;
     }
+
+    StackObject.StackObjectType GetType(string type)
+    {
+        switch (type)
+        {
+            case "int":
+                return StackObject.StackObjectType.Int;
+            case "float":
+                return StackObject.StackObjectType.Float;
+            case "string":
+                return StackObject.StackObjectType.String;
+            case "bool":
+                return StackObject.StackObjectType.Bool;
+            default:
+                throw new Exception($"Unknown type: {type}");
+        }
+    }
 }
+
+
 
 /*
  if(isLeftDouble || isRightDouble){

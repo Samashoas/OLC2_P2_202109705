@@ -3,16 +3,18 @@ using System.Collections.Generic;
 using System.Text;
 
 public class StackObject{
-    public enum StackObjectType {Int, Float, String, Bool}
+    public enum StackObjectType {Int, Float, String, Bool, Undefined}
     public StackObjectType Type {get; set;}
     public int length {get; set;}
     public int Depth {get; set;}
+    public int Offset { get; set; }
     public string? Id{get; set;}
 }
 
 public class Generator
 {
-    private readonly List<string> instructions = new List<string>();
+    public  List<string> instructions = new List<string>();
+    public  List<string> funcInstructions = new List<string>();
     private readonly StandardLibrary standardLibrary = new StandardLibrary();
     private int lableCounter = 0;
 
@@ -26,6 +28,10 @@ public class Generator
 
     public void SetLable(string label){
         instructions.Add($"{label}:");
+    }
+
+    public void PopObject(){
+        stack.RemoveAt(stack.Count - 1);
     }
     public StackObject TopObject(){
         return stack.Last();
@@ -76,7 +82,7 @@ public class Generator
         PushObject(obj);
     }
 
-    public StackObject PopConstant(string rd)
+    public StackObject PopObject(string rd)
     {
         var obj = stack.Last();
         stack.RemoveAt(stack.Count - 1);
@@ -165,6 +171,17 @@ public class Generator
         throw new Exception($"Object {id} not found in stack");
     }
 
+    //Direccionamiento
+    public void Adr(string rd, string label)
+    {
+        instructions.Add($"ADR {rd}, {label}");
+    }
+
+    public void Bl(string label)
+    {
+        instructions.Add($"BL {label}");
+    }
+
     // Arithmetic operations
 
     public void Neg(string rd, string rs){
@@ -228,6 +245,11 @@ public class Generator
 
     public void cbz(string rs, string label){
         instructions.Add($"CBZ {rs}, {label}");
+    }
+
+    public void Br(string rs)
+    {
+        instructions.Add($"BR {rs}");
     }
 
     public void B(string label){
@@ -354,15 +376,24 @@ public class Generator
         sb.AppendLine("    adr x10, heap");
 
         EndProgram();
+
+        // Luego el código principal
         foreach (var instruction in instructions)
         {
             sb.AppendLine($"    {instruction}");
         }
 
-
+       
+        
         sb.AppendLine("\n\n\n// Standard library functions");
         sb.AppendLine(standardLibrary.GetFunctionDefinitions());
 
         return sb.ToString();
+        }
+
+        public StackObject GetFrameLocal(int index)
+    {
+        var obj = stack.Where(o => o.Type == StackObject.StackObjectType.Undefined).ToList()[index];
+        return obj;
     }
 }
