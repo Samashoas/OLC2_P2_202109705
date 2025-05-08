@@ -973,19 +973,67 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
 
         GC.Comment("--Pop Values R--");
         var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var isRightRune = GC.TopObject().Type == StackObject.StackObjectType.Rune;
         var right = GC.PopObject(isRightDouble? Register.D0 : Register.X0);
         
         GC.Comment("--Pop Values L--");
         var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var isLeftRune = GC.TopObject().Type == StackObject.StackObjectType.Rune;
         var left = GC.PopObject(isLeftDouble? Register.D1 : Register.X1);
 
-        if(isLeftDouble || isRightDouble){
-            return null;
-        }
-
-        GC.Cmp(Register.X1, Register.X0);
         var trueLabel = GC.GetLable();
         var endLabel = GC.GetLable();
+
+        if(isLeftDouble || isRightDouble){
+            GC.Comment("--Float relational comparison--");
+            if(!isRightDouble) GC.Scvtf(Register.D0, Register.X0);// Convertir right a double
+            if(!isLeftDouble) GC.Scvtf(Register.D1, Register.X1);// Convertir left a double
+
+            GC.Fcmp(Register.D1, Register.D0);
+
+            switch (operation)
+            {
+                case "<":
+                    GC.Blt(trueLabel);
+                    break;
+                case "<=":
+                    GC.Ble(trueLabel);
+                    break;
+                case ">":
+                    GC.Bgt(trueLabel);
+                    break;
+                case ">=":
+                    GC.Bge(trueLabel);
+                    break;
+                default:
+                    throw new Exception($"Unknown relational operator: {operation}");
+            }
+        }else if(isLeftRune && isRightRune){
+            GC.Comment("--Rune relational comparison--");
+            // Comparar los runes
+            GC.Cmp(Register.X1, Register.X0);
+
+            switch (operation)
+            {
+                case "<":
+                    GC.Blt(trueLabel);
+                    break;
+                case "<=":
+                    GC.Ble(trueLabel);
+                    break;
+                case ">":
+                    GC.Bgt(trueLabel);
+                    break;
+                case ">=":
+                    GC.Bge(trueLabel);
+                    break;
+                default:
+                    throw new Exception($"Unknown relational operator: {operation}");
+            }
+        }
+        else{
+            GC.Comment("--Integer relational comparison--");
+            GC.Cmp(Register.X1, Register.X0);
 
         switch (operation)
         {
@@ -1003,6 +1051,7 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
                 break;
             default:
                 throw new Exception($"Unknown relational operator: {operation}");
+        }
         }
         //Set que el valor es falso
         GC.Mov(Register.X0, 0);
@@ -1110,10 +1159,74 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitLogicalOr(LanguageParser.LogicalOrContext context)
     {
+            GC.Comment("--Logical OR--");
+    
+        // Evaluamos la primera expresión
+        Visit(context.expr(0));
+        
+        // Obtenemos el valor del primer operando
+        GC.PopObject(Register.X0);
+        
+        // Etiquetas para el flujo de control
+        var trueLabel = GC.GetLable();
+        var endLabel = GC.GetLable();
+        
+        // Verificamos si es verdadero (1) para cortocircuito
+        GC.Cmp(Register.X0, 1);
+        GC.Beq(trueLabel);  // Si es verdadero, saltamos directamente al resultado verdadero
+        
+        // Si el primer operando es falso, evaluamos el segundo
+        Visit(context.expr(1));
+        GC.PopObject(Register.X0);
+        
+        // El resultado está ahora en X0, lo pusheamos al stack
+        GC.Push(Register.X0);
+        GC.B(endLabel);
+        
+        // Si el primer operando es verdadero, el resultado es verdadero
+        GC.SetLable(trueLabel);
+        GC.Mov(Register.X0, 1);  // true
+        GC.Push(Register.X0);
+        
+        GC.SetLable(endLabel);
+        GC.PushObject(GC.BoolObject());
+        
         return null;
     }
     public override Object? VisitLogicalAnd(LanguageParser.LogicalAndContext context)
     {
+        GC.Comment("--Logical AND--");
+        
+        // Evaluamos la primera expresión
+        Visit(context.expr(0));
+        
+        // Obtenemos el valor del primer operando
+        GC.PopObject(Register.X0);
+        
+        // Etiquetas para el flujo de control
+        var falseLabel = GC.GetLable();
+        var endLabel = GC.GetLable();
+        
+        // Verificamos si es falso (0) para cortocircuito
+        GC.Cmp(Register.X0, 0);
+        GC.Beq(falseLabel);  // Si es falso, saltamos directamente al resultado falso
+        
+        // Si el primer operando es verdadero, evaluamos el segundo
+        Visit(context.expr(1));
+        GC.PopObject(Register.X0);
+        
+        // El resultado está ahora en X0, lo pusheamos al stack
+        GC.Push(Register.X0);
+        GC.B(endLabel);
+        
+        // Si el primer operando es falso, el resultado es falso
+        GC.SetLable(falseLabel);
+        GC.Mov(Register.X0, 0);  // false
+        GC.Push(Register.X0);
+        
+        GC.SetLable(endLabel);
+        GC.PushObject(GC.BoolObject());
+        
         return null;
     }
     public override Object? VisitParens(LanguageParser.ParensContext context)
