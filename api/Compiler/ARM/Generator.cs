@@ -394,6 +394,11 @@ public class Generator
         standardLibrary.Use("concat_string");
     }
 
+    public void StringCompare(){
+        instructions.Add("BL string_compare");
+        standardLibrary.Use("string_compare");
+    }
+
     public void EndProgram()
     {
         Mov(Register.X0, 0);

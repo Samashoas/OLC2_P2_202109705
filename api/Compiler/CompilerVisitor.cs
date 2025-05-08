@@ -1028,11 +1028,13 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         GC.Comment("--Pop Values R--");
         var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
         var isRightRune = GC.TopObject().Type == StackObject.StackObjectType.Rune;
+        var isRightString = GC.TopObject().Type == StackObject.StackObjectType.String;
         var right = GC.PopObject(isRightDouble? Register.D0 : Register.X0);
 
         GC.Comment("--Pop Values L--");
         var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
         var isLeftRune = GC.TopObject().Type == StackObject.StackObjectType.Rune;
+        var isLeftString = GC.TopObject().Type == StackObject.StackObjectType.String;
         var left = GC.PopObject(isLeftDouble? Register.D1 : Register.X1);
 
         var trueLabel = GC.GetLable();
@@ -1059,6 +1061,20 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
             GC.Comment("--Rune equality comparison--");
             // Comparar los runes
             GC.Cmp(Register.X1, Register.X0);
+            
+            if (operation == "==")
+                GC.Beq(trueLabel);
+            else if (operation == "!=")
+                GC.Bne(trueLabel);
+        }else if(isLeftString && isRightString){
+            GC.Comment("--String equality comparison using library function--");
+    
+            // X1 contiene primer string, X0 contiene segundo string
+            // Llamar a la función de comparación
+            GC.StringCompare();
+            
+            // X0 ahora contiene 0 si son iguales, 1 si son diferentes
+            GC.Cmp(Register.X0, 0);
             
             if (operation == "==")
                 GC.Beq(trueLabel);

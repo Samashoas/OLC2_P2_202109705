@@ -6,18 +6,72 @@ _start:
     adr x10, heap
     // --Print statement--
     // --Equality--
-    // --Rune value: 'A' (65)--
-    MOV x0, #65
-    STR x0, [SP, #-8]!
-    // --Rune value: 'A' (65)--
-    MOV x0, #65
-    STR x0, [SP, #-8]!
+    // --String value: Hola--
+    STR x10, [SP, #-8]!
+    // StringArray[0] = 72
+    MOV w0, #72
+    STRB w0, [x10]
+    MOV x0, #1
+    ADD x10, x10, x0
+    // StringArray[1] = 111
+    MOV w0, #111
+    STRB w0, [x10]
+    MOV x0, #1
+    ADD x10, x10, x0
+    // StringArray[2] = 108
+    MOV w0, #108
+    STRB w0, [x10]
+    MOV x0, #1
+    ADD x10, x10, x0
+    // StringArray[3] = 97
+    MOV w0, #97
+    STRB w0, [x10]
+    MOV x0, #1
+    ADD x10, x10, x0
+    // StringArray[4] = 0
+    MOV w0, #0
+    STRB w0, [x10]
+    MOV x0, #1
+    ADD x10, x10, x0
+    // --String value: Holsa--
+    STR x10, [SP, #-8]!
+    // StringArray[0] = 72
+    MOV w0, #72
+    STRB w0, [x10]
+    MOV x0, #1
+    ADD x10, x10, x0
+    // StringArray[1] = 111
+    MOV w0, #111
+    STRB w0, [x10]
+    MOV x0, #1
+    ADD x10, x10, x0
+    // StringArray[2] = 108
+    MOV w0, #108
+    STRB w0, [x10]
+    MOV x0, #1
+    ADD x10, x10, x0
+    // StringArray[3] = 115
+    MOV w0, #115
+    STRB w0, [x10]
+    MOV x0, #1
+    ADD x10, x10, x0
+    // StringArray[4] = 97
+    MOV w0, #97
+    STRB w0, [x10]
+    MOV x0, #1
+    ADD x10, x10, x0
+    // StringArray[5] = 0
+    MOV w0, #0
+    STRB w0, [x10]
+    MOV x0, #1
+    ADD x10, x10, x0
     // --Pop Values R--
     LDR x0, [SP], #8
     // --Pop Values L--
     LDR x1, [SP], #8
-    // --Rune equality comparison--
-    CMP x1, x0
+    // --String equality comparison using library function--
+    BL string_compare
+    CMP x0, #0
     BEQ L0
     MOV x0, #0
     STR x0, [SP, #-8]!
@@ -40,6 +94,54 @@ _start:
 
 
 // Standard library functions
+
+//--------------------------------------------------------------
+// string_compare - Compares two strings and returns 0 if equal, 1 if different
+//
+// Input:
+//   x0 - Address of the first string
+//   x1 - Address of the second string
+// Output:
+//   x0 - 0 if strings are equal, 1 if different
+//--------------------------------------------------------------
+string_compare:
+    // Save registers
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    
+    // Initialize registers for comparison
+    mov x2, x0  // First string
+    mov x3, x1  // Second string
+    
+string_compare_loop:
+    // Load a byte from each string
+    ldrb w4, [x2], #1
+    ldrb w5, [x3], #1
+    
+    // Check if bytes are different
+    cmp w4, w5
+    bne string_compare_diff
+    
+    // Check if we reached end of string (null terminator)
+    cbz w4, string_compare_equal
+    
+    // Continue to next character
+    b string_compare_loop
+    
+string_compare_diff:
+    // Strings are different
+    mov x0, #1
+    b string_compare_exit
+    
+string_compare_equal:
+    // Strings are equal
+    mov x0, #0
+    
+string_compare_exit:
+    // Restore registers and return
+    ldp x29, x30, [sp], #16
+    ret
+
 
 //--------------------------------------------------------------
 // print_boolean - Prints a boolean value (true/false) to stdout
