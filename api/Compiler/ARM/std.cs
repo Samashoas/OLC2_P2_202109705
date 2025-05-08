@@ -458,52 +458,75 @@ concat_done:
     ldp x29, x30, [sp], #16    // Restore frame pointer and link register
     ret
 "},
-{ "string_compare", @"
+{ "concat_string", @"
 //--------------------------------------------------------------
-// string_compare - Compares two strings and returns 0 if equal, 1 if different
+// concat_string - Concatenates two strings and returns a new string
 //
 // Input:
 //   x0 - Address of the first string
 //   x1 - Address of the second string
 // Output:
-//   x0 - 0 if strings are equal, 1 if different
+//   x0 - Address of the concatenated string (in heap)
 //--------------------------------------------------------------
-string_compare:
-    // Save registers
-    stp x29, x30, [sp, #-16]!
-    mov x29, sp
+concat_string:
+    // Save ALL necessary registers
+    stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
+    stp x19, x20, [sp, #-16]!  // Save callee-saved registers
+    stp x21, x22, [sp, #-16]!  // Save more callee-saved registers
+    str x10, [sp, #-16]!       // IMPORTANTE: Guardar x10 (heap pointer)
     
-    // Initialize registers for comparison
-    mov x2, x0  // First string
-    mov x3, x1  // Second string
+    // Save string addresses
+    mov x19, x0                // First string
+    mov x20, x1                // Second string
+    mov x21, x10               // Current heap pointer
     
-string_compare_loop:
-    // Load a byte from each string
-    ldrb w4, [x2], #1
-    ldrb w5, [x3], #1
+    // Calculate lengths (for debugging and optimization)
+    mov x22, #0                // Length counter for first string
+len_first:
+    ldrb w0, [x19, x22]
+    cbz w0, done_len_first
+    add x22, x22, #1
+    b len_first
+done_len_first:
     
-    // Check if bytes are different
-    cmp w4, w5
-    bne string_compare_diff
+    mov x23, #0                // Length counter for second string
+len_second:
+    ldrb w0, [x20, x23]
+    cbz w0, done_len_second
+    add x23, x23, #1
+    b len_second
+done_len_second:
     
-    // Check if we reached end of string (null terminator)
-    cbz w4, string_compare_equal
+    // Verify heap has enough space (optional safety check)
+    add x24, x22, x23          // Total length needed (plus null terminator)
+    add x24, x24, #1
     
-    // Continue to next character
-    b string_compare_loop
+    // Copy first string to heap
+    mov x22, #0                // Reset counter
+copy_first:
+    ldrb w0, [x19, x22]        // Load byte from first string
+    cbz w0, copy_second_init   // If null terminator, start copying second string
+    strb w0, [x10], #1         // Store byte and advance heap pointer
+    add x22, x22, #1           // Increment counter
+    b copy_first
     
-string_compare_diff:
-    // Strings are different
-    mov x0, #1
-    b string_compare_exit
+copy_second_init:
+    mov x22, #0                // Reset counter for second string
+copy_second:
+    ldrb w0, [x20, x22]        // Load byte from second string
+    strb w0, [x10], #1         // Store byte and advance heap pointer
+    add x22, x22, #1           // Increment counter
+    cbz w0, concat_done        // If we just copied null terminator, we're done
+    b copy_second
     
-string_compare_equal:
-    // Strings are equal
-    mov x0, #0
+concat_done:
+    mov x0, x21                // Return pointer to the new string
     
-string_compare_exit:
-    // Restore registers and return
-    ldp x29, x30, [sp], #16
+    // Restore ALL registers in reverse order
+    ldr x10, [sp], #16         // IMPORTANTE: Restaurar x10 correctamente
+    ldp x21, x22, [sp], #16    // Restore callee-saved registers
+    ldp x19, x20, [sp], #16    // Restore callee-saved registers
+    ldp x29, x30, [sp], #16    // Restore frame pointer and link register
     ret
 "}
     };

@@ -18,6 +18,13 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     private string breakLabel = "";
     private string returnLabel = "";
 
+    private string currentSwitchValue = ""; // Registro que tiene el valor del switch
+    private Dictionary<LanguageParser.SwitchCaseContext, string> caseLabels = new Dictionary<LanguageParser.SwitchCaseContext, string>();
+    private string switchEndLabel = "";
+    private bool switchHasDefault = false;
+    private string switchDefaultLabel = "";
+    private int switchPhase = 0;
+
     //PARA FUNCIONES
     private Dictionary<string, FunctionMetadata> function = new Dictionary<string, FunctionMetadata>();
     private string? insideFunction = null;
@@ -278,77 +285,68 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         }
         return null;
     }
-    public override Object? VisitSwitchStmt(LanguageParser.SwitchStmtContext context)
+
+        public override Object? VisitSwitchStmt(LanguageParser.SwitchStmtContext context)
     {
-        return null;
-    }
-    public override Object? VisitCaseClause(LanguageParser.CaseClauseContext context)
-    {
-        return null;
-    }
-    public override Object? VisitDefaultClause(LanguageParser.DefaultClauseContext context)
-    {
-        return null;
-    }
-    public override Object? VisitForStmt(LanguageParser.ForStmtContext context)
-    {
-        if(context.forInit() != null){
-            return HandleForClasssic(context);
-        }else{
-            return HandleForCondition(context);
-        }
-    }
-    //For
-    private Object? HandleForClasssic(LanguageParser.ForStmtContext context)
-    {
-        var previousContinueLabel = continueLabel;
+        GC.Comment("--Switch statement--");
+        
+        // Guardar break label anterior y establecer uno nuevo
         var previousBreakLabel = breakLabel;
-
-        var startLabel = GC.GetLable();
-        var endLabel = GC.GetLable();
-        var incrementLabel = GC.GetLable();
-
-        continueLabel = incrementLabel;
-        breakLabel = endLabel;
-
+        switchEndLabel = GC.GetLable();
+        breakLabel = switchEndLabel;
+        
+        // Crear un nuevo scope para el switch
         GC.NewScope();
-
-        GC.Comment("--For CLASSIC--");
-        // Visit the initialization part (forInit)
-        if (context.forInit() != null)
+        
+        // Evaluar la expresión del switch
+        Visit(context.expr());
+        
+        // Guardar el valor del switch en X19 (registro callee-saved)
+        GC.Comment("--Save switch value to X19--");
+        GC.PopObject(Register.X0);
+        GC.instructions.Add("MOV X19, X0");
+        currentSwitchValue = "X19";
+        
+        // Inicializar o limpiar el diccionario de etiquetas
+        caseLabels.Clear();
+        switchHasDefault = false;
+        
+        // Fase 1: Crear etiquetas para cada caso
+        switchPhase = 0;
+        foreach (var switchCase in context.switchCase())
         {
-            Visit(context.forInit());
+            Visit(switchCase); // Esto llamará a VisitCaseClause o VisitDefaultClause
         }
         
-        GC.SetLable(startLabel);
-        
-        // Visit the condition (expr[0])
-        if (context.expr() != null && context.expr().Length > 0)
+        // Fase 2: Generar comparaciones
+        switchPhase = 1;
+        foreach (var switchCase in context.switchCase())
         {
-            GC.Comment("--For condition--");
-            Visit(context.expr(0));
-            GC.PopObject(Register.X0);
-            GC.cbz(Register.X0, endLabel);
-        }
-
-        // Visit the body
-        GC.Comment("--For CLASSIC body--");
-        Visit(context.stmt());
-        
-        // Continue label for increment
-        GC.SetLable(incrementLabel);
-        GC.Comment("--For CLASSIC increment--");
-        
-        // Visit the increment expression (expr[1])
-        if (context.expr() != null && context.expr().Length > 1)
-        {
-            Visit(context.expr(1));
-            //GC.PopObject(Register.X0); // Clean up stack after expression
+            if (switchCase is LanguageParser.CaseClauseContext)
+                Visit(switchCase); // Llamará a VisitCaseClause
         }
         
-        GC.B(startLabel); // Jump back to start
-        GC.SetLable(endLabel);
-
+        // Si ningún caso coincide, saltar al default o al final
+        if (switchHasDefault)
+        {
+            GC.B(switchDefaultLabel);
+        }
+        else
+        {
+            GC.B(switchEndLabel);
+        }
+        
+        // Fase 3: Generar cuerpos
+        switchPhase = 2;
+        foreach (var switchCase in context.switchCase())
+        {
+            Visit(switchCase); // Llama a VisitCaseClause o VisitDefaultClause para generar los cuerpos
+        }
+        
+        // Etiqueta de fin del switch
+        GC.SetLable(switchEndLabel);
+        
+        // Limpiar el scope
         var bytesToRemove = GC.EndScope();
         if (bytesToRemove > 0)
         {
@@ -357,12 +355,163 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
             GC.Add(Register.SP, Register.SP, Register.X0);
             GC.Comment("Stack pointer updated");
         }
-
-        GC.Comment("--End For CLASSIC--");
-        continueLabel = previousContinueLabel;
+        
+        // Restaurar break label anterior
         breakLabel = previousBreakLabel;
-
+        
         return null;
+        }
+        public override Object? VisitCaseClause(LanguageParser.CaseClauseContext context)
+        {   
+                if (switchPhase == 0) // Fase de creación de etiquetas
+            {
+                caseLabels[context] = GC.GetLable();
+            }
+            else if (switchPhase == 1) // Fase de comparación
+            {
+            GC.Comment("--Case comparison--");
+            // Evaluar la expresión del caso
+            Visit(context.expr());
+            var caseValueObj = GC.PopObject(Register.X0);
+            
+            // Restaurar el valor del switch desde la variable global
+            GC.instructions.Add($"MOV X1, {currentSwitchValue}");
+            
+            // Comparar según el tipo
+            if (caseValueObj.Type == StackObject.StackObjectType.String)
+            {
+                GC.StringCompare();
+                GC.Cmp(Register.X0, 0);
+                GC.Beq(caseLabels[context]);
+            }
+            else
+            {
+                GC.Cmp(Register.X1, Register.X0);
+                GC.Beq(caseLabels[context]);
+            }
+        }
+        else if (switchPhase == 2) // Fase de generar cuerpos
+        {
+            GC.Comment("--Case body--");
+            GC.SetLable(caseLabels[context]);
+            
+            // Visitar cada sentencia en el cuerpo
+            foreach (var stmt in context.stmt())
+            {
+                Visit(stmt);
+            }
+        }
+        
+        return null;
+        }
+        public override Object? VisitDefaultClause(LanguageParser.DefaultClauseContext context)
+        {
+            if (switchPhase == 0) // Fase de creación de etiquetas
+            {
+                switchDefaultLabel = GC.GetLable();
+                switchHasDefault = true;
+            }
+            else if (switchPhase == 2) // Fase de generar cuerpos
+            {
+                GC.Comment("--Default case--");
+                GC.SetLable(switchDefaultLabel);
+                
+                // Visitar cada sentencia en el cuerpo
+                foreach (var stmt in context.stmt())
+                {
+                    Visit(stmt);
+                }
+            }
+            
+            return null;
+        }
+        public override Object? VisitForStmt(LanguageParser.ForStmtContext context)
+        {
+            if(context.forInit() != null){
+                return HandleForClasssic(context);
+            }else{
+                return HandleForCondition(context);
+            }
+        }
+        //For
+        private Object? HandleForClasssic(LanguageParser.ForStmtContext context)
+        {
+            var previousContinueLabel = continueLabel;
+            var previousBreakLabel = breakLabel;
+
+            var startLabel = GC.GetLable();
+            var conditionLabel = GC.GetLable(); // Nueva etiqueta para la condición
+            var endLabel = GC.GetLable();
+            var incrementLabel = GC.GetLable();
+
+            continueLabel = incrementLabel;
+            breakLabel = endLabel;
+
+            GC.NewScope();
+
+            GC.Comment("--For CLASSIC--");
+            // Inicialización
+            if (context.forInit() != null)
+            {
+                Visit(context.forInit());
+            }
+            
+            // Salto directo a la evaluación de la condición
+            GC.B(conditionLabel);
+            
+            GC.SetLable(startLabel);
+            // Visitar el cuerpo
+            GC.Comment("--For CLASSIC body--");
+            Visit(context.stmt());
+            
+            // Continue label - incremento
+            GC.SetLable(incrementLabel);
+            GC.Comment("--For CLASSIC increment--");
+            
+            // Visitar la expresión de incremento
+            if (context.expr() != null && context.expr().Length > 1) {
+                Visit(context.expr(1));
+                GC.PopObject(Register.X0);  // Limpiar después de la expresión
+            }
+            
+            // Evaluación de la condición después del incremento
+                GC.SetLable(conditionLabel);
+            if (context.expr() != null)
+            {
+                GC.Comment("--For condition--");
+                Visit(context.expr(0));
+                GC.PopObject(Register.X0);
+                
+                // Cambio aquí: usar CBZ para comprobar si la condición es falsa
+                GC.Cmp(Register.X0, 0);
+                GC.Beq(endLabel);  // Si es falso (0), salir del bucle
+                
+                // Si es verdadero, continuar con el cuerpo
+                GC.B(startLabel);
+            }
+            else {
+                // Si no hay condición, siempre volver al cuerpo (bucle infinito)
+                GC.B(startLabel);
+            }
+            
+            // Etiqueta de fin del bucle
+            GC.SetLable(endLabel);
+
+            // Limpiar el scope
+            var bytesToRemove = GC.EndScope();
+            if (bytesToRemove > 0)
+            {
+                GC.Comment($"--Pop {bytesToRemove} bytes--");
+                GC.Mov(Register.X0, bytesToRemove);
+                GC.Add(Register.SP, Register.SP, Register.X0);
+                GC.Comment("Stack pointer updated");
+            }
+
+            GC.Comment("--End For CLASSIC--");
+            continueLabel = previousContinueLabel;
+            breakLabel = previousBreakLabel;
+
+            return null;
     }
     //While
     private Object? HandleForCondition(LanguageParser.ForStmtContext context)
@@ -907,6 +1056,78 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitIncDec(LanguageParser.IncDecContext context)
     {
+        string varName = context.ID().GetText();
+        string operation = context.op.Text;
+        
+        GC.Comment($"--{operation} operator for {varName}--");
+        
+        // Obtener la dirección y el objeto de la variable
+        var (offset, varObject) = GC.GetObject(varName);
+        
+        // Cargar el valor actual de la variable en un registro
+        GC.Mov(Register.X0, offset);
+        GC.Add(Register.X0, Register.SP, Register.X0);  // X0 ahora contiene la dirección de la variable
+        
+        // Guardar la dirección para actualizar después
+        GC.Push(Register.X0);  // Guardar la dirección en la pila
+        
+        if (varObject.Type == StackObject.StackObjectType.Float)
+        {
+            // Para float64
+            GC.Ldr(Register.D1, Register.X0);  // Cargar el valor en D1
+            
+            // Incrementar o decrementar según el operador
+            if (operation == "++")
+            {
+                GC.Comment("--Incremento de float--");
+                // Cargar constante 1.0 en D0
+                GC.Mov(Register.X0, 1);
+                GC.Scvtf(Register.D0, Register.X0);  // Convertir 1 a flotante
+                GC.Fadd(Register.D1, Register.D1, Register.D0);  // D1 = D1 + 1.0
+            }
+            else if (operation == "--")
+            {
+                GC.Comment("--Decremento de float--");
+                // Cargar constante 1.0 en D0
+                GC.Mov(Register.X0, 1);
+                GC.Scvtf(Register.D0, Register.X0);  // Convertir 1 a flotante
+                GC.Fsub(Register.D1, Register.D1, Register.D0);  // D1 = D1 - 1.0
+            }
+            
+            // Actualizar el valor en memoria
+            GC.Pop(Register.X0);  // Recuperar la dirección
+            GC.Str(Register.D1, Register.X0);
+            
+            // Push el valor resultante en la pila para usarlo como resultado de la expresión
+            GC.Push(Register.D1);
+            GC.PushObject(GC.FloatObject());
+        }
+        else
+        {
+            // Para enteros y otros tipos numéricos
+            GC.Ldr(Register.X1, Register.X0);  // Cargar el valor en X1
+            
+            // Incrementar o decrementar según el operador
+            if (operation == "++")
+            {
+                GC.Comment("--Incremento de entero--");
+                GC.Add(Register.X1, Register.X1, "#1");
+            }
+            else if (operation == "--")
+            {
+                GC.Comment("--Decremento de entero--");
+                GC.Sub(Register.X1, Register.X1, "#1");
+            }
+            
+            // Actualizar el valor en memoria
+            GC.Pop(Register.X0);  // Recuperar la dirección
+            GC.Str(Register.X1, Register.X0);
+            
+            // Push el valor resultante en la pila para usarlo como resultado de la expresión
+            GC.Push(Register.X1);
+            GC.PushObject(GC.CloneObject(varObject));
+        }
+        
         return null;
     }
     public override Object? VisitMDmod(LanguageParser.MDmodContext context)
