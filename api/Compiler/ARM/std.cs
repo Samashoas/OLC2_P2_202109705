@@ -30,6 +30,18 @@ public class StandardLibrary
         else if (function == "print_newline")
         {
             UsedSymbols.Add("newline_char");
+        }else if (function == "parse_float")
+        {
+            UsedSymbols.Add("minus_sign");
+            UsedSymbols.Add("dot_char");
+        }else if (function == "typeof")
+        {
+            UsedSymbols.Add("type_int_str");
+            UsedSymbols.Add("type_float_str");
+            UsedSymbols.Add("type_bool_str");
+            UsedSymbols.Add("type_string_str");
+            UsedSymbols.Add("type_rune_str");
+            UsedSymbols.Add("type_undefined_str");
         }
     }
 
@@ -545,6 +557,131 @@ str_to_int_end:
     ret
 "
 },
+{ "parseFloat", @"
+//--------------------------------------------------------------
+// parse_float - Convert string to floating point number
+//
+// Input:
+//   x0 - Address of the string
+// Output:
+//   d0 - Double precision floating point value
+//--------------------------------------------------------------
+parse_float:
+    // Save all necessary registers
+    stp x29, x30, [sp, #-16]!
+    stp x19, x20, [sp, #-16]!
+    stp x21, x22, [sp, #-16]!
+    stp x23, x24, [sp, #-16]!
+    stp x25, x26, [sp, #-16]!
+    
+    // Initialize registers
+    mov x19, x0        // Save string pointer
+    mov x20, #0        // Integer part
+    mov x21, #0        // Fractional part
+    mov x22, #10       // Base 10
+    mov x23, #0        // Negative flag
+    mov x24, #0        // Position after decimal point
+    fmov d0, xzr       // Initialize result to 0.0
+    
+    // Check if string is empty
+    ldrb w0, [x19]
+    cbz w0, parse_float_end
+    
+    // Check for sign
+    cmp w0, #'-'
+    bne not_negative
+    mov x23, #1        // Set negative flag
+    add x19, x19, #1   // Skip '-'
+    b check_digits
+    
+not_negative:
+    cmp w0, #'+'
+    bne check_digits
+    add x19, x19, #1   // Skip '+'
+    
+check_digits:
+    // First pass: build integer part until we hit a dot or end
+    mov x20, #0        // Reset integer part
+    
+int_part_loop:
+    ldrb w0, [x19]
+    cbz w0, convert_int_part  // End of string
+    
+    cmp w0, #'.'
+    beq decimal_point_found  // Decimal point found
+    
+    sub w0, w0, #'0'
+    cmp w0, #9
+    bhi convert_int_part      // Not a digit
+    
+    // integer_part = integer_part * 10 + digit
+    mul x20, x20, x22
+    add x20, x20, x0
+    
+    add x19, x19, #1  // Next character
+    b int_part_loop
+    
+decimal_point_found:
+    add x19, x19, #1  // Skip decimal point
+    
+    // Second pass: build fractional part
+    mov x21, #0        // Reset fractional part
+    mov x24, #1        // Start with divisor 10
+    
+frac_part_loop:
+    ldrb w0, [x19]
+    cbz w0, convert_parts    // End of string
+    
+    sub w0, w0, #'0'
+    cmp w0, #9
+    bhi convert_parts        // Not a digit
+    
+    // fractional_part = fractional_part * 10 + digit
+    mul x21, x21, x22
+    add x21, x21, x0
+    
+    // Increase divisor by factor of 10
+    mul x24, x24, x22
+    
+    add x19, x19, #1        // Next character
+    b frac_part_loop
+    
+convert_int_part:
+    // Convert integer part to float
+    scvtf d0, x20
+    b apply_sign
+    
+convert_parts:
+    // Convert integer part to float
+    scvtf d0, x20
+    
+    // If we have fractional part
+    cmp x24, #1
+    beq apply_sign       // No fractional part
+    
+    // Convert fractional part to float
+    scvtf d1, x21        // d1 = float(fractional)
+    scvtf d2, x24        // d2 = float(divisor)
+    fdiv d1, d1, d2      // d1 = d1 / d2
+    
+    // Add to result
+    fadd d0, d0, d1      // result = int_part + frac_part
+    
+apply_sign:
+    // Apply negative sign if needed
+    cmp x23, #0
+    beq parse_float_end
+    fneg d0, d0
+    
+parse_float_end:
+    // Restore registers
+    ldp x25, x26, [sp], #16
+    ldp x23, x24, [sp], #16
+    ldp x21, x22, [sp], #16
+    ldp x19, x20, [sp], #16
+    ldp x29, x30, [sp], #16
+    ret
+"},
     };
 
     private readonly static Dictionary<string, string> Symbols = new Dictionary<string, string>
@@ -555,6 +692,12 @@ str_to_int_end:
         { "space_char", @"space_char: .ascii "" """ },
         { "newline_char", @"newline_char: .ascii ""\n""" },
         { "true_str", @"true_str: .ascii ""true""" },
-        { "false_str", @"false_str: .ascii ""false""" }
+        { "false_str", @"false_str: .ascii ""false""" },
+        { "type_int_str", @"type_int_str: .ascii ""int\0""" },
+        { "type_float_str", @"type_float_str: .ascii ""float64\0""" },
+        { "type_bool_str", @"type_bool_str: .ascii ""bool\0""" },
+        { "type_string_str", @"type_string_str: .ascii ""string\0""" },
+        { "type_rune_str", @"type_rune_str: .ascii ""rune\0""" },
+        { "type_undefined_str", @"type_undefined_str: .ascii ""undefined\0""" }
     };
 }
