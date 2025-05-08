@@ -794,6 +794,79 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitImplicitAddSub(LanguageParser.ImplicitAddSubContext context)
     {
+        string varName = context.ID().GetText();
+        GC.Comment($"--Implicit {context.op.Text} operation on {varName}--");
+        
+        // Obtener información sobre la variable
+        var (offset, varObject) = GC.GetObject(varName);
+        
+        // Cargar el valor actual de la variable en X1
+        GC.Comment("--Load current variable value--");
+        GC.Mov(Register.X0, offset);
+        GC.Add(Register.X0, Register.SP, Register.X0);
+        
+        // Guardar la dirección de memoria para después
+        GC.Push(Register.X0);
+        
+        // Cargar el valor según el tipo
+        if (varObject.Type == StackObject.StackObjectType.Float) {
+            GC.Ldr(Register.D1, Register.X0);
+        } else {
+            GC.Ldr(Register.X1, Register.X0);
+        }
+        
+        // Evaluar la expresión del lado derecho
+        GC.Comment("--Evaluate right operand--");
+        Visit(context.expr());
+        
+        // Obtener el valor de la expresión
+        var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var right = GC.PopObject(isRightDouble ? Register.D0 : Register.X0);
+        
+        // Operaciones numéricas
+        if (varObject.Type == StackObject.StackObjectType.Float || isRightDouble) {
+            // Convertir a float si es necesario
+            if (varObject.Type != StackObject.StackObjectType.Float) {
+                GC.Scvtf(Register.D1, Register.X1);
+            }
+            if (!isRightDouble) {
+                GC.Scvtf(Register.D0, Register.X0);
+            }
+            
+            // Realizar la operación según el operador
+            if (context.op.Text == "+=") {
+                GC.Comment("--Adding floats--");
+                GC.Fadd(Register.D0, Register.D1, Register.D0);
+            } else if (context.op.Text == "-=") {
+                GC.Comment("--Subtracting floats--");
+                GC.Fsub(Register.D0, Register.D1, Register.D0);
+            }
+            
+            // Guardar el resultado en la variable
+            GC.Pop(Register.X2);  // Recuperar dirección de memoria
+            GC.Str(Register.D0, Register.X2);
+            
+            // Push del resultado para la pila
+            GC.Push(Register.D0);
+            GC.PushObject(GC.FloatObject());
+        } else {
+            // Realizar la operación según el operador
+            if (context.op.Text == "+=") {
+                GC.Comment("--Adding integers--");
+                GC.Add(Register.X0, Register.X1, Register.X0);
+            } else if (context.op.Text == "-=") {
+                GC.Comment("--Subtracting integers--");
+                GC.Sub(Register.X0, Register.X1, Register.X0);
+            }
+            
+            // Guardar el resultado en la variable
+            GC.Pop(Register.X2);  // Recuperar dirección de memoria
+            GC.Str(Register.X0, Register.X2);
+            
+            // Push del resultado para la pila
+            GC.Push(Register.X0);
+            GC.PushObject(GC.CloneObject(varObject));
+        }
         return null;
     }
     public override Object? VisitIncDec(LanguageParser.IncDecContext context)
