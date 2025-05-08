@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .data
 heap: .space 4096
 .text
@@ -16794,3 +16795,5 @@ print_result:
 newline_char: .ascii "\n"
 space_char: .ascii " "
 minus_sign: .ascii "-"
+=======
+>>>>>>> Future

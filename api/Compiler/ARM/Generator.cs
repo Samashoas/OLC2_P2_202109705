@@ -406,6 +406,19 @@ public class Generator
         instructions.Add("BL str_to_int");  // But here use the correct function name
     }
 
+    public void ParseFloatFunction()
+    {
+        Comment("--Call string to float function--");
+        standardLibrary.Use("parseFloat");
+        instructions.Add("BL parse_float"); 
+    }
+
+    public void TypeOfFunction()
+    {
+        Comment("--TypeOf function--");
+        standardLibrary.Use("typeof");
+        // The function doesn't need a branch label because it's implemented inline
+    }
     public void EndProgram()
     {
         Mov(Register.X0, 0);

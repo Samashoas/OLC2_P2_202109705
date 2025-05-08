@@ -253,10 +253,68 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitTypeOfStmt (LanguageParser.TypeOfStmtContext context)
     {
+        GC.Comment("--TypeOf function--");
+        
+        // Make sure to use the library for symbols
+        GC.TypeOfFunction();
+        
+        // Evaluate the expression
+        Visit(context.expr());
+        
+        var objType = GC.TopObject().Type;
+        GC.PopObject(); // Remove the value but don't put it in a register
+        
+        // Set the result based on type
+        switch (objType)
+        {
+            case StackObject.StackObjectType.Int:
+                GC.Adr(Register.X0, "type_int_str");
+                break;
+            case StackObject.StackObjectType.Float:
+                GC.Adr(Register.X0, "type_float_str");
+                break;
+            case StackObject.StackObjectType.Bool:
+                GC.Adr(Register.X0, "type_bool_str");
+                break;
+            case StackObject.StackObjectType.String:
+                GC.Adr(Register.X0, "type_string_str");
+                break;
+            case StackObject.StackObjectType.Rune:
+                GC.Adr(Register.X0, "type_rune_str");
+                break;
+            default:
+                GC.Adr(Register.X0, "type_undefined_str");
+                break;
+        }
+        
+        // Push the result to the stack
+        GC.Push(Register.X0);
+        GC.PushObject(GC.StringObject());  // The result is a string
+        
         return null;
     }
     public override Object? VisitParseFloatStmt (LanguageParser.ParseFloatStmtContext context)
     {
+        GC.Comment("--ParseFloat function--");
+    
+        // Evaluate the expression that contains the string
+        Visit(context.expr());
+        
+        // Verify that what we received is a string
+        if (GC.TopObject().Type != StackObject.StackObjectType.String)
+        {
+            throw new Exception("ParseFloat requires a string argument");
+        }
+        
+        // Get the string address in X0
+        GC.PopObject(Register.X0);
+        
+        // Call the library function that converts a string to float
+        GC.ParseFloatFunction();
+        
+        // Result is in D0 as a floating point number
+        GC.Push(Register.D0);
+        GC.PushObject(GC.FloatObject());
         return null;
     }
     public override Object? VisitBlockStmt(LanguageParser.BlockStmtContext context)
