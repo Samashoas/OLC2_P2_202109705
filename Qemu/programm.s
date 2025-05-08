@@ -6,17 +6,17 @@ _start:
     adr x10, heap
     // --Print statement--
     // --Equality--
-    // --Constant true--
-    MOV x0, #1
+    // --Rune value: 'A' (65)--
+    MOV x0, #65
     STR x0, [SP, #-8]!
-    // --Constant true--
-    MOV x0, #1
+    // --Rune value: 'A' (65)--
+    MOV x0, #65
     STR x0, [SP, #-8]!
     // --Pop Values R--
     LDR x0, [SP], #8
     // --Pop Values L--
     LDR x1, [SP], #8
-    // --Integer equality comparison--
+    // --Rune equality comparison--
     CMP x1, x0
     BEQ L0
     MOV x0, #0

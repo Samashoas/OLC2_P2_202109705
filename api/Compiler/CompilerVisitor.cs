@@ -1027,10 +1027,12 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
 
         GC.Comment("--Pop Values R--");
         var isRightDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var isRightRune = GC.TopObject().Type == StackObject.StackObjectType.Rune;
         var right = GC.PopObject(isRightDouble? Register.D0 : Register.X0);
 
         GC.Comment("--Pop Values L--");
         var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
+        var isLeftRune = GC.TopObject().Type == StackObject.StackObjectType.Rune;
         var left = GC.PopObject(isLeftDouble? Register.D1 : Register.X1);
 
         var trueLabel = GC.GetLable();
@@ -1048,6 +1050,15 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
             
             // Comparar los flotantes
             GC.Fcmp(Register.D1, Register.D0);
+            
+            if (operation == "==")
+                GC.Beq(trueLabel);
+            else if (operation == "!=")
+                GC.Bne(trueLabel);
+        } else if(isLeftRune || isRightRune){
+            GC.Comment("--Rune equality comparison--");
+            // Comparar los runes
+            GC.Cmp(Register.X1, Register.X0);
             
             if (operation == "==")
                 GC.Beq(trueLabel);
