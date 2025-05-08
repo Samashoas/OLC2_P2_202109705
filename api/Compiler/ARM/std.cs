@@ -557,8 +557,6 @@ str_to_int_end:
     ret
 "
 },
-<<<<<<< HEAD
-=======
 { "parseFloat", @"
 //--------------------------------------------------------------
 // parse_float - Convert string to floating point number
@@ -684,7 +682,6 @@ parse_float_end:
     ldp x29, x30, [sp], #16
     ret
 "},
->>>>>>> Future
 { "string_compare", @"
 //--------------------------------------------------------------
 // string_compare - Compares two strings and returns 0 if equal, 1 if different
@@ -732,11 +729,7 @@ string_compare_exit:
     // Restore registers and return
     ldp x29, x30, [sp], #16
     ret
-<<<<<<< HEAD
 "}
-=======
-"},
->>>>>>> Future
     };
 
     private readonly static Dictionary<string, string> Symbols = new Dictionary<string, string>
