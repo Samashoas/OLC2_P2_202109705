@@ -248,6 +248,10 @@ public class Generator
         instructions.Add($"FDIV {rd}, {rs1}, {rs2}");
     }
 
+    public void Fcmp(string rs1, string rs2){
+        instructions.Add($"FCMP {rs1}, {rs2}");
+    }
+
     //Relational operations
 
     public void Cmp(string rs1, object rs2)
@@ -304,6 +308,11 @@ public class Generator
 
     public void Strb(string rs1, string rs2, int offset = 0){
         instructions.Add($"STRB {rs1}, [{rs2}]");
+    }
+
+    public void Ldrb(string rd, string address)
+    {
+        instructions.Add($"LDRB {rd}, {address}");
     }
     public void Ldr(string rd, string rs1, int offset = 0)
     {

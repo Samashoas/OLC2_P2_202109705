@@ -1033,36 +1033,52 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
         var isLeftDouble = GC.TopObject().Type == StackObject.StackObjectType.Float;
         var left = GC.PopObject(isLeftDouble? Register.D1 : Register.X1);
 
-        if(isLeftDouble || isRightDouble){
-            return null;
-        }
-
-        GC.Cmp(Register.X1, Register.X0);
         var trueLabel = GC.GetLable();
         var endLabel = GC.GetLable();
 
-        switch (operation)
-        {
-            case "==":
+        // Si alguno de los operandos es flotante, hacer comparación de flotantes
+        if(isLeftDouble || isRightDouble){
+            GC.Comment("--Float equality comparison--");
+            
+            // Convertir a flotantes si es necesario
+            if (!isLeftDouble)
+                GC.Scvtf(Register.D1, Register.X1);
+            if (!isRightDouble)
+                GC.Scvtf(Register.D0, Register.X0);
+            
+            // Comparar los flotantes
+            GC.Fcmp(Register.D1, Register.D0);
+            
+            if (operation == "==")
                 GC.Beq(trueLabel);
-                break;
-            case "!=":
+            else if (operation == "!=")
                 GC.Bne(trueLabel);
-                break;
-            default:
-                throw new Exception($"Unknown equality operator: {operation}");
+        }
+        // Comparación de enteros (y otros tipos no flotantes)
+        else {
+            GC.Comment("--Integer equality comparison--");
+            GC.Cmp(Register.X1, Register.X0);
+            
+            if (operation == "==")
+                GC.Beq(trueLabel);
+            else if (operation == "!=")
+                GC.Bne(trueLabel);
         }
 
+        // Si no se cumple la condición, resultado = falso
         GC.Mov(Register.X0, 0); // false
         GC.Push(Register.X0);
         GC.B(endLabel);
 
+        // Código para resultado verdadero
         GC.SetLable(trueLabel);
         GC.Mov(Register.X0, 1); // true
         GC.Push(Register.X0);
+        
+        // Etiqueta final
         GC.SetLable(endLabel);
-
         GC.PushObject(GC.BoolObject());
+        
         return null;
     }
     public override Object? VisitLogicalOr(LanguageParser.LogicalOrContext context)
