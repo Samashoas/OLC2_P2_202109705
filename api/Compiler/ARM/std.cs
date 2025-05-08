@@ -682,6 +682,54 @@ parse_float_end:
     ldp x29, x30, [sp], #16
     ret
 "},
+{ "string_compare", @"
+//--------------------------------------------------------------
+// string_compare - Compares two strings and returns 0 if equal, 1 if different
+//
+// Input:
+//   x0 - Address of the first string
+//   x1 - Address of the second string
+// Output:
+//   x0 - 0 if strings are equal, 1 if different
+//--------------------------------------------------------------
+string_compare:
+    // Save registers
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    
+    // Initialize registers for comparison
+    mov x2, x0  // First string
+    mov x3, x1  // Second string
+    
+string_compare_loop:
+    // Load a byte from each string
+    ldrb w4, [x2], #1
+    ldrb w5, [x3], #1
+    
+    // Check if bytes are different
+    cmp w4, w5
+    bne string_compare_diff
+    
+    // Check if we reached end of string (null terminator)
+    cbz w4, string_compare_equal
+    
+    // Continue to next character
+    b string_compare_loop
+    
+string_compare_diff:
+    // Strings are different
+    mov x0, #1
+    b string_compare_exit
+    
+string_compare_equal:
+    // Strings are equal
+    mov x0, #0
+    
+string_compare_exit:
+    // Restore registers and return
+    ldp x29, x30, [sp], #16
+    ret
+"},
     };
 
     private readonly static Dictionary<string, string> Symbols = new Dictionary<string, string>
