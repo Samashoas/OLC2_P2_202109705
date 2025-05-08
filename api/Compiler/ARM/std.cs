@@ -18,6 +18,11 @@ public class StandardLibrary
             UsedSymbols.Add("dot_char");
             UsedSymbols.Add("zero_char");
         }
+        else if (function == "print_boolean")
+        {
+            UsedSymbols.Add("true_str");
+            UsedSymbols.Add("false_str");
+        }
         else if (function == "print_space")
         {
             UsedSymbols.Add("space_char");
@@ -340,6 +345,206 @@ print_newline:
     ldp x29, x30, [sp], #16
     ret
     "},
+    { "print_char", @"
+//--------------------------------------------------------------
+// print_char - Prints a single character to stdout
+//
+// Input:
+//   x0 - The character value to print (as an integer)
+//--------------------------------------------------------------
+print_char:
+    // Save registers
+    stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
+    
+    // Reserve space for the character on the stack and store it
+    sub sp, sp, #16
+    strb w0, [sp]              // Store the character on stack
+    
+    // Print the character
+    mov x0, #1                 // fd = 1 (stdout)
+    mov x1, sp                 // Address of character on stack
+    mov x2, #1                 // Length = 1 byte
+    mov w8, #64                // write syscall
+    svc #0
+    
+    // Clean up and return
+    add sp, sp, #16            // Restore stack
+    ldp x29, x30, [sp], #16    // Restore frame pointer and link register
+    ret
+"},
+       { "print_boolean", @"
+//--------------------------------------------------------------
+// print_boolean - Prints a boolean value (true/false) to stdout
+//
+// Input:
+//   x0 - The boolean value to print (0 = false, non-zero = true)
+//--------------------------------------------------------------
+print_boolean:
+    // Save registers
+    stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
+    
+    // Check if the value is true or false
+    cmp x0, #0
+    beq print_false
+    
+    // Print 'true'
+    mov x0, #1                 // fd = 1 (stdout)
+    adr x1, true_str           // Address of 'true' string
+    mov x2, #4                 // Length = 4 bytes
+    mov w8, #64                // Syscall write
+    svc #0
+    b print_bool_end
+    
+print_false:
+    // Print 'false'
+    mov x0, #1                 // fd = 1 (stdout)
+    adr x1, false_str          // Address of 'false' string
+    mov x2, #5                 // Length = 5 bytes
+    mov w8, #64                // Syscall write
+    svc #0
+    
+print_bool_end:
+    // Restore registers and return
+    ldp x29, x30, [sp], #16    // Restore frame pointer and link register
+    ret" },
+{ "concat_string", @"
+//--------------------------------------------------------------
+// concat_string - Concatenates two strings and returns a new string
+//
+// Input:
+//   x0 - Address of the first string
+//   x1 - Address of the second string
+// Output:
+//   x0 - Address of the concatenated string (in heap)
+//--------------------------------------------------------------
+concat_string:
+    // Save ALL necessary registers
+    stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
+    stp x19, x20, [sp, #-16]!  // Save callee-saved registers
+    stp x21, x22, [sp, #-16]!  // Save more callee-saved registers
+    str x10, [sp, #-16]!       // IMPORTANTE: Guardar x10 (heap pointer)
+    
+    // Save string addresses
+    mov x19, x0                // First string
+    mov x20, x1                // Second string
+    mov x21, x10               // Current heap pointer
+    
+    // Calculate lengths (for debugging and optimization)
+    mov x22, #0                // Length counter for first string
+len_first:
+    ldrb w0, [x19, x22]
+    cbz w0, done_len_first
+    add x22, x22, #1
+    b len_first
+done_len_first:
+    
+    mov x23, #0                // Length counter for second string
+len_second:
+    ldrb w0, [x20, x23]
+    cbz w0, done_len_second
+    add x23, x23, #1
+    b len_second
+done_len_second:
+    
+    // Verify heap has enough space (optional safety check)
+    add x24, x22, x23          // Total length needed (plus null terminator)
+    add x24, x24, #1
+    
+    // Copy first string to heap
+    mov x22, #0                // Reset counter
+copy_first:
+    ldrb w0, [x19, x22]        // Load byte from first string
+    cbz w0, copy_second_init   // If null terminator, start copying second string
+    strb w0, [x10], #1         // Store byte and advance heap pointer
+    add x22, x22, #1           // Increment counter
+    b copy_first
+    
+copy_second_init:
+    mov x22, #0                // Reset counter for second string
+copy_second:
+    ldrb w0, [x20, x22]        // Load byte from second string
+    strb w0, [x10], #1         // Store byte and advance heap pointer
+    add x22, x22, #1           // Increment counter
+    cbz w0, concat_done        // If we just copied null terminator, we're done
+    b copy_second
+    
+concat_done:
+    mov x0, x21                // Return pointer to the new string
+    
+    // Restore ALL registers in reverse order
+    ldr x10, [sp], #16         // IMPORTANTE: Restaurar x10 correctamente
+    ldp x21, x22, [sp], #16    // Restore callee-saved registers
+    ldp x19, x20, [sp], #16    // Restore callee-saved registers
+    ldp x29, x30, [sp], #16    // Restore frame pointer and link register
+    ret
+"},
+{"atoi", @"
+//--------------------------------------------------------------
+// str_to_int - Convert string to integer
+//
+// Input:
+//   x0 - Address of the string
+// Output:
+//   x0 - Integer value
+//--------------------------------------------------------------
+str_to_int:
+    // Save registers
+    stp x29, x30, [sp, #-16]!
+    stp x19, x20, [sp, #-16]!
+    stp x21, x22, [sp, #-16]!
+    
+    // Initialize registers
+    mov x19, x0       // Save string address
+    mov x20, #0       // Initialize result
+    mov x21, #0       // Flag for negative number (0 = positive)
+    mov x22, #10      // Constant multiplier (base 10)
+    
+    // Check if string is empty
+    ldrb w0, [x19]
+    cbz w0, str_to_int_end
+    
+    // Check for negative sign
+    cmp w0, #'-'
+    bne parse_loop
+    mov x21, #1       // Set negative flag
+    add x19, x19, #1  // Skip the '-' sign
+    
+parse_loop:
+    // Load current character
+    ldrb w0, [x19], #1
+    
+    // Check if we're done (null terminator)
+    cbz w0, apply_negative
+    
+    // Check if character is a digit (ASCII '0' to '9')
+    sub w0, w0, #'0'
+    cmp w0, #9
+    bhi apply_negative  // If not a digit, we're done
+    
+    // Update result: result = result * 10 + digit
+    mul x20, x20, x22
+    add x20, x20, x0, UXTW  // Add with zero extension
+    
+    // Continue with next character
+    b parse_loop
+    
+apply_negative:
+    // Apply negative sign if needed
+    cmp x21, #1
+    bne str_to_int_end
+    neg x20, x20
+    
+str_to_int_end:
+    // Return result in x0
+    mov x0, x20
+    
+    // Restore registers and return
+    ldp x21, x22, [sp], #16
+    ldp x19, x20, [sp], #16
+    ldp x29, x30, [sp], #16
+    ret
+"
+},
     };
 
     private readonly static Dictionary<string, string> Symbols = new Dictionary<string, string>
@@ -348,6 +553,8 @@ print_newline:
         { "dot_char", @"dot_char: .ascii "".""" },
         { "zero_char", @"zero_char: .ascii ""0""" },
         { "space_char", @"space_char: .ascii "" """ },
-        { "newline_char", @"newline_char: .ascii ""\n""" }
+        { "newline_char", @"newline_char: .ascii ""\n""" },
+        { "true_str", @"true_str: .ascii ""true""" },
+        { "false_str", @"false_str: .ascii ""false""" }
     };
 }

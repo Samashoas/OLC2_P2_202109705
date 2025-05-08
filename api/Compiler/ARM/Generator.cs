@@ -3,16 +3,18 @@ using System.Collections.Generic;
 using System.Text;
 
 public class StackObject{
-    public enum StackObjectType {Int, Float, String, Bool}
+    public enum StackObjectType {Int, Float, String, Bool, Rune, Undefined}
     public StackObjectType Type {get; set;}
     public int length {get; set;}
     public int Depth {get; set;}
+    public int Offset { get; set; }
     public string? Id{get; set;}
 }
 
 public class Generator
 {
-    private readonly List<string> instructions = new List<string>();
+    public  List<string> instructions = new List<string>();
+    public  List<string> funcInstructions = new List<string>();
     private readonly StandardLibrary standardLibrary = new StandardLibrary();
     private int lableCounter = 0;
 
@@ -26,6 +28,10 @@ public class Generator
 
     public void SetLable(string label){
         instructions.Add($"{label}:");
+    }
+
+    public void PopObject(){
+        stack.RemoveAt(stack.Count - 1);
     }
     public StackObject TopObject(){
         return stack.Last();
@@ -43,6 +49,10 @@ public class Generator
                 break;
             case StackObject.StackObjectType.Bool:
                 Mov(Register.X0, (bool)value ? 1 : 0);
+                Push(Register.X0);
+                break;
+            case StackObject.StackObjectType.Rune:
+                Mov(Register.X0, (int)(char)value);
                 Push(Register.X0);
                 break;
             case StackObject.StackObjectType.Float:
@@ -76,7 +86,7 @@ public class Generator
         PushObject(obj);
     }
 
-    public StackObject PopConstant(string rd)
+    public StackObject PopObject(string rd)
     {
         var obj = stack.Last();
         stack.RemoveAt(stack.Count - 1);
@@ -113,6 +123,15 @@ public class Generator
     public StackObject StringObject(){
         return new StackObject{
             Type = StackObject.StackObjectType.String,
+            length = 8,
+            Depth = stackDepth,
+            Id = null
+        };
+    }
+
+    public StackObject RuneObject(){
+        return new StackObject{
+            Type = StackObject.StackObjectType.Rune,
             length = 8,
             Depth = stackDepth,
             Id = null
@@ -163,6 +182,17 @@ public class Generator
         }
 
         throw new Exception($"Object {id} not found in stack");
+    }
+
+    //Direccionamiento
+    public void Adr(string rd, string label)
+    {
+        instructions.Add($"ADR {rd}, {label}");
+    }
+
+    public void Bl(string label)
+    {
+        instructions.Add($"BL {label}");
     }
 
     // Arithmetic operations
@@ -218,6 +248,10 @@ public class Generator
         instructions.Add($"FDIV {rd}, {rs1}, {rs2}");
     }
 
+    public void Fcmp(string rs1, string rs2){
+        instructions.Add($"FCMP {rs1}, {rs2}");
+    }
+
     //Relational operations
 
     public void Cmp(string rs1, object rs2)
@@ -228,6 +262,11 @@ public class Generator
 
     public void cbz(string rs, string label){
         instructions.Add($"CBZ {rs}, {label}");
+    }
+
+    public void Br(string rs)
+    {
+        instructions.Add($"BR {rs}");
     }
 
     public void B(string label){
@@ -269,6 +308,11 @@ public class Generator
 
     public void Strb(string rs1, string rs2, int offset = 0){
         instructions.Add($"STRB {rs1}, [{rs2}]");
+    }
+
+    public void Ldrb(string rd, string address)
+    {
+        instructions.Add($"LDRB {rd}, {address}");
     }
     public void Ldr(string rd, string rs1, int offset = 0)
     {
@@ -317,6 +361,20 @@ public class Generator
         standardLibrary.Use("print_integer");
     }
 
+    public void PrintRune(string rd)
+    {
+        instructions.Add($"MOV x0, {rd}");
+        instructions.Add("BL print_char");
+        standardLibrary.Use("print_char"); 
+    }
+
+    public void PrintBool(string rd)
+    {
+        instructions.Add($"MOV x0, {rd}");
+        instructions.Add("BL print_boolean");
+        standardLibrary.Use("print_boolean");
+    }
+
     public void PrintFloat()
     {
         standardLibrary.Use("print_integer");
@@ -329,6 +387,23 @@ public class Generator
         instructions.Add($"MOV x0, {rd}");
         instructions.Add("BL print_string");
         standardLibrary.Use("print_string");
+    }
+
+    public void ConcatString(){
+        instructions.Add("BL concat_string");
+        standardLibrary.Use("concat_string");
+    }
+
+    public void StringCompare(){
+        instructions.Add("BL string_compare");
+        standardLibrary.Use("string_compare");
+    }
+
+    public void AtoiFunction()
+    {
+        Comment("--Call string to integer function--");
+        standardLibrary.Use("atoi");  // This is fine to remain as is
+        instructions.Add("BL str_to_int");  // But here use the correct function name
     }
 
     public void EndProgram()
@@ -354,15 +429,22 @@ public class Generator
         sb.AppendLine("    adr x10, heap");
 
         EndProgram();
+        // Luego el código principal
         foreach (var instruction in instructions)
         {
             sb.AppendLine($"    {instruction}");
         }
-
+        
 
         sb.AppendLine("\n\n\n// Standard library functions");
         sb.AppendLine(standardLibrary.GetFunctionDefinitions());
 
         return sb.ToString();
+        }
+
+        public StackObject GetFrameLocal(int index)
+    {
+        var obj = stack.Where(o => o.Type == StackObject.StackObjectType.Undefined).ToList()[index];
+        return obj;
     }
 }
