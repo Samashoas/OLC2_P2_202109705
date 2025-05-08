@@ -399,6 +399,13 @@ public class Generator
         standardLibrary.Use("string_compare");
     }
 
+    public void AtoiFunction()
+    {
+        Comment("--Call string to integer function--");
+        standardLibrary.Use("atoi");  // This is fine to remain as is
+        instructions.Add("BL str_to_int");  // But here use the correct function name
+    }
+
     public void EndProgram()
     {
         Mov(Register.X0, 0);

@@ -229,6 +229,26 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     }
     public override Object? VisitAtoiStmt(LanguageParser.AtoiStmtContext context)
     {
+        GC.Comment("--Atoi function--");
+    
+        // Evaluar la expresión que contiene la cadena
+        Visit(context.expr());
+        
+        // Verificar que lo que recibimos es un string
+        if (GC.TopObject().Type != StackObject.StackObjectType.String)
+        {
+            throw new Exception("Atoi requires a string argument");
+        }
+        
+        // Obtener la dirección de la cadena en X0
+        GC.PopObject(Register.X0);
+        
+        // Llamar a la función de biblioteca que convierte un string a entero
+        GC.AtoiFunction();
+        
+        // El resultado está en X0 como un entero
+        GC.Push(Register.X0);
+        GC.PushObject(GC.IntObject());
         return null;
     }
     public override Object? VisitTypeOfStmt (LanguageParser.TypeOfStmtContext context)

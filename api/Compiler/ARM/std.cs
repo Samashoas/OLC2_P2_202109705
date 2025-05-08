@@ -418,57 +418,6 @@ print_bool_end:
 //   x0 - Address of the concatenated string (in heap)
 //--------------------------------------------------------------
 concat_string:
-    // Save registers
-    stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
-    stp x19, x20, [sp, #-16]!  // Save callee-saved registers
-    stp x21, x22, [sp, #-16]!  // Save more callee-saved registers
-    
-    // Save string addresses
-    mov x19, x0                // First string
-    mov x20, x1                // Second string
-    mov x21, x10               // Current heap pointer
-    
-    // Copy first string to heap
-    mov x22, #0                // Initialize counter
-copy_first:
-    ldrb w0, [x19, x22]        // Load byte from first string
-    cbz w0, copy_second_init   // If null terminator, start copying second string
-    strb w0, [x10]             // Store byte in heap
-    add x10, x10, #1           // Increment heap pointer
-    add x22, x22, #1           // Increment counter
-    b copy_first               // Continue copying
-    
-copy_second_init:
-    mov x22, #0                // Reset counter for second string
-copy_second:
-    ldrb w0, [x20, x22]        // Load byte from second string
-    strb w0, [x10]             // Store byte in heap (including null terminator)
-    cbz w0, concat_done        // If null terminator, we're done
-    add x10, x10, #1           // Increment heap pointer
-    add x22, x22, #1           // Increment counter
-    b copy_second              // Continue copying
-    
-concat_done:
-    add x10, x10, #1           // Move heap pointer past null terminator
-    mov x0, x21                // Return pointer to the new string
-    
-    // Restore registers
-    ldp x21, x22, [sp], #16    // Restore callee-saved registers
-    ldp x19, x20, [sp], #16    // Restore callee-saved registers
-    ldp x29, x30, [sp], #16    // Restore frame pointer and link register
-    ret
-"},
-{ "concat_string", @"
-//--------------------------------------------------------------
-// concat_string - Concatenates two strings and returns a new string
-//
-// Input:
-//   x0 - Address of the first string
-//   x1 - Address of the second string
-// Output:
-//   x0 - Address of the concatenated string (in heap)
-//--------------------------------------------------------------
-concat_string:
     // Save ALL necessary registers
     stp x29, x30, [sp, #-16]!  // Save frame pointer and link register
     stp x19, x20, [sp, #-16]!  // Save callee-saved registers
@@ -528,7 +477,74 @@ concat_done:
     ldp x19, x20, [sp], #16    // Restore callee-saved registers
     ldp x29, x30, [sp], #16    // Restore frame pointer and link register
     ret
-"}
+"},
+{"atoi", @"
+//--------------------------------------------------------------
+// str_to_int - Convert string to integer
+//
+// Input:
+//   x0 - Address of the string
+// Output:
+//   x0 - Integer value
+//--------------------------------------------------------------
+str_to_int:
+    // Save registers
+    stp x29, x30, [sp, #-16]!
+    stp x19, x20, [sp, #-16]!
+    stp x21, x22, [sp, #-16]!
+    
+    // Initialize registers
+    mov x19, x0       // Save string address
+    mov x20, #0       // Initialize result
+    mov x21, #0       // Flag for negative number (0 = positive)
+    mov x22, #10      // Constant multiplier (base 10)
+    
+    // Check if string is empty
+    ldrb w0, [x19]
+    cbz w0, str_to_int_end
+    
+    // Check for negative sign
+    cmp w0, #'-'
+    bne parse_loop
+    mov x21, #1       // Set negative flag
+    add x19, x19, #1  // Skip the '-' sign
+    
+parse_loop:
+    // Load current character
+    ldrb w0, [x19], #1
+    
+    // Check if we're done (null terminator)
+    cbz w0, apply_negative
+    
+    // Check if character is a digit (ASCII '0' to '9')
+    sub w0, w0, #'0'
+    cmp w0, #9
+    bhi apply_negative  // If not a digit, we're done
+    
+    // Update result: result = result * 10 + digit
+    mul x20, x20, x22
+    add x20, x20, x0, UXTW  // Add with zero extension
+    
+    // Continue with next character
+    b parse_loop
+    
+apply_negative:
+    // Apply negative sign if needed
+    cmp x21, #1
+    bne str_to_int_end
+    neg x20, x20
+    
+str_to_int_end:
+    // Return result in x0
+    mov x0, x20
+    
+    // Restore registers and return
+    ldp x21, x22, [sp], #16
+    ldp x19, x20, [sp], #16
+    ldp x29, x30, [sp], #16
+    ret
+"
+},
     };
 
     private readonly static Dictionary<string, string> Symbols = new Dictionary<string, string>
