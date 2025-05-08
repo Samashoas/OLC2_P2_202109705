@@ -692,19 +692,55 @@ public class CompilerVisitor : LanguageBaseVisitor<Object?>
     public override Object? VisitNegate(LanguageParser.NegateContext context)
     {
         Visit(context.expr());
-        GC.Comment("--NEGATE--");
-
-        var isFloatValue = GC.TopObject().Type == StackObject.StackObjectType.Float;
-
-        if(isFloatValue){
-            GC.Pop(Register.D0);
-            GC.Fneg(Register.D0, Register.D0);
-            GC.Push(Register.D0);
-        }else{
-            GC.Pop(Register.X0);
-            GC.Neg(Register.X0, Register.X0);
+        
+        // Determinar el tipo de operación según el operador
+        string op = context.op.Text;
+        
+        if (op == "-") {
+            // Negación numérica (ya implementada en tu código)
+            GC.Comment("--Numeric negation--");
+            
+            var isFloatValue = GC.TopObject().Type == StackObject.StackObjectType.Float;
+            
+            if (isFloatValue) {
+                GC.Pop(Register.D0);
+                GC.Fneg(Register.D0, Register.D0);
+                GC.Push(Register.D0);
+            } else {
+                GC.Pop(Register.X0);
+                GC.Neg(Register.X0, Register.X0);
+                GC.Push(Register.X0);
+            }
+            
+            // No es necesario cambiar el tipo del objeto en la pila
+        } 
+        else if (op == "!") {
+            // Negación lógica
+            GC.Comment("--Logical negation--");
+            
+            // Obtener el valor booleano
+            GC.PopObject(Register.X0);
+            
+            // Negar el valor: si X0 es 0, se convierte en 1; si X0 es 1, se convierte en 0
+            GC.Cmp(Register.X0, 0);
+            var trueLabel = GC.GetLable();
+            var endLabel = GC.GetLable();
+            
+            GC.Beq(trueLabel);  // Si X0 es 0 (falso), ir a trueLabel
+            
+            // Si X0 es 1 (verdadero), convertir a 0 (falso)
+            GC.Mov(Register.X0, 0);
+            GC.B(endLabel);
+            
+            // Si X0 es 0 (falso), convertir a 1 (verdadero)
+            GC.SetLable(trueLabel);
+            GC.Mov(Register.X0, 1);
+            
+            GC.SetLable(endLabel);
             GC.Push(Register.X0);
+            GC.PushObject(GC.BoolObject());  // El resultado siempre es un booleano
         }
+        
         return null;
     }
     public override Object? VisitAddSub(LanguageParser.AddSubContext context)
